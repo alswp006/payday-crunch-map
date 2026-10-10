@@ -213,6 +213,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0014: 잔고 달력 그리드 + 날짜 상세 시트 (files: src/components/home/CalendarGrid.tsx, src/components/home/CalendarGrid.css, src/components/home/DayDetailSheet.tsx, src/components/home/CalendarGrid.test.tsx)
 - 0015: 출금 일정 목록 + 최저 잔고일 카드 + 공유 버튼 (files: src/components/home/ScheduleList.tsx, src/components/home/LowestDayCard.tsx, src/components/home/ShareButton.tsx, src/components/home/HomeCards.test.tsx)
 - 0016: 출금일 바꿔보기 BottomSheet (ShiftSheet) (files: src/components/home/ShiftSheet.tsx, src/components/home/ShiftSheet.test.tsx)
+- 0017: 시뮬레이션 섹션 (teaser + 리워드 게이트 + 잠금 층 목록) (files: src/components/home/SimSection.tsx, src/components/home/LockedTier.tsx, src/components/home/SimSection.test.tsx)
 
 ## Available exports from existing files
 // src/App.tsx
@@ -275,6 +276,10 @@ export function CalendarGrid({ model, onDayClick }: CalendarGridProps) {
 export interface DayDetailSheetProps {
 export function DayDetailSheet({ open, cell, onClose }: DayDetailSheetProps) {
 
+// src/components/home/LockedTier.tsx
+export interface LockedTierProps {
+export function LockedTier({ settings, outflows, today, onUnlocked }: LockedTierProps) {
+
 // src/components/home/LowestDayCard.tsx
 export interface LowestDayCardProps {
 export function LowestDayCard({ summary, monthLabel, sparkline }: LowestDayCardProps) {
@@ -283,12 +288,7 @@ export function LowestDayCard({ summary, monthLabel, sparkline }: LowestDayCardP
 export interface ScheduleListProps {
 export function ScheduleList({ rows }: ScheduleListProps) {
 
-// src/components/home/ShareButton.tsx
-export function ShareButton() {
-
-// src/components/home/ShiftSheet.tsx
-export interface ShiftSheetProps {
-export function ShiftSheet(props: ShiftShe
+// src/components/home/S
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 

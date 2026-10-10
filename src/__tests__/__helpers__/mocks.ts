@@ -373,7 +373,8 @@ export function mockTds() {
             { role: "navigation" },
             slot("upper", upper),
             subtitleTop != null ? h("p", { "data-slot": "subtitle-top" }, subtitleTop) : null,
-            title ? h("h1", null, title) : null,
+            // title이 Top.TitleParagraph(이미 h1)이면 감싸는 쪽은 div — h1 안의 h1은 무효 중첩이다.
+            title ? h(typeof title === "string" ? "h1" : "div", null, title) : null,
             subtitleBottom != null ? h("p", { "data-slot": "subtitle-bottom" }, subtitleBottom) : null,
             slot("right", right),
             slot("lower", lower),

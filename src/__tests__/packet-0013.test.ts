@@ -1,19 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
-import { MemoryRouter, useLocation } from "react-router-dom";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { mockTds, mockAnalytics, mockLogClick, mockOpenToast } from "@/__tests__/__helpers__/mocks";
 import { BASE } from "@/test/fixtures";
 import { OUTFLOWS_KEY, SETTINGS_KEY } from "@/lib/store/keys";
-import { AppDataProvider } from "@/state/AppDataContext";
-import Items from "@/pages/Items";
 
 mockTds();
 mockAnalytics();
 
 // navigate 호출은 기록하되 실제 라우터에도 그대로 흘려보낸다(재마운트 시 state가 비었는지 보려고).
 const { navigateSpy } = vi.hoisted(() => ({ navigateSpy: vi.fn() }));
-vi.mock("react-router-dom", async () => {
+
+// mocks.ts는 import되는 순간 자기 react-router-dom 목(useNavigate=mockNavigate, useLocation=mockLocation)을
+// 호이스팅해 등록하므로, 위쪽에서 hoist된 vi.mock은 그 뒤에 덮어써진다. 그래서 헬퍼를 import한 **뒤에**
+// 목을 다시 걸고 라우터를 쓰는 모듈은 그 뒤에 동적으로 불러온다.
+vi.doMock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
   const react = await import("react");
   return {
@@ -38,11 +39,15 @@ vi.mock("@/lib/store/save", async (importOriginal) => {
   return { ...actual, saveOutflows: saveOutflowsSpy };
 });
 
+const { MemoryRouter, useLocation } = await import("react-router-dom");
+const { AppDataProvider } = await import("@/state/AppDataContext");
+const { default: Items } = await import("@/pages/Items");
+
 const FAIL_MSG = "저장하지 못했어요. 다시 시도해주세요";
 
 type Item = Record<string, unknown>;
 
-function seed(items: Item[]) {
+function seed(items: readonly object[]) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(BASE.settings));
   localStorage.setItem(OUTFLOWS_KEY, JSON.stringify({ version: 1, items }));
 }
