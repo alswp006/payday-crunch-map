@@ -157,10 +157,15 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
     utils.ts
   main.tsx
   pages/
+    Home.test.tsx
     Home.tsx
+    Items.test.tsx
     Items.tsx
+    Setup.test.tsx
     Setup.tsx
     __TdsGallery.tsx
+    home/
+    setup/
   state/
     AppDataContext.test.tsx
     AppDataContext.tsx
@@ -195,7 +200,7 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 - store/load.ts: export function loadSettings():; export function loadOutflows():; export function loadMeta(): AppMeta | null
 - store/save.ts: export function saveSettings(settings: PaySettings): SaveResult; export function saveOutflows(items: Outflow[]): SaveResult; export function saveMeta(meta: AppMeta): SaveResult
 - store/storage.ts: export type StorageErrorKind = 'quota' | 'unknown'; export function readRaw(key: string): string | null; export function writeRaw(key: string, value: unknown): void; export function removeKey(key: string): void; export function probeStorage(): boolean; export function classifyStorageError(e: unknown): StorageErrorKind
-- store/validate.ts: export const MAX_OUTFLOWS = 30; export function isPlainObject(value: unknown): value is Record<string, unknown>; export function isIntInRange(value: unknown, min: number, max: number): value is number; export function isWeekendRule(value: unknown): value is WeekendRule; export function parseSettings(value: unknown): PaySettings | null; export function parseOutflowContainer(value: unknown): unk...
+- store/validate.ts: export const MAX_OUTFLOWS = 30; export function isPlainObject(value: unknown): value is Record<string, unknown>; export function isIntInRange(value: unknown, min: number, max: number): value is number; export function isWeekendRule(value: unknown): value is WeekendRule; export function parseSettings(value: unknown): P...
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
@@ -214,11 +219,11 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0015: 출금 일정 목록 + 최저 잔고일 카드 + 공유 버튼 (files: src/components/home/ScheduleList.tsx, src/components/home/LowestDayCard.tsx, src/components/home/ShareButton.tsx, src/components/home/HomeCards.test.tsx)
 - 0016: 출금일 바꿔보기 BottomSheet (ShiftSheet) (files: src/components/home/ShiftSheet.tsx, src/components/home/ShiftSheet.test.tsx)
 - 0017: 시뮬레이션 섹션 (teaser + 리워드 게이트 + 잠금 층 목록) (files: src/components/home/SimSection.tsx, src/components/home/LockedTier.tsx, src/components/home/SimSection.test.tsx)
+- 0011: 월급·잔고 설정 페이지 (/setup) + 폼 훅 (files: src/pages/Setup.tsx, src/pages/setup/useSetupForm.ts, src/pages/Setup.test.tsx)
+- 0013: 출금 항목 페이지 (/items) + 목록 (files: src/pages/Items.tsx, src/components/items/OutflowList.tsx, src/pages/Items.test.tsx)
+- 0018: 홈 페이지 조립 (/) + 월 이월 훅 (files: src/pages/Home.tsx, src/pages/home/useMonthRollover.ts, src/pages/Home.test.tsx)
 
 ## Available exports from existing files
-// src/App.tsx
-export default function App() {
-
 // src/components/AdSlot.tsx
 export function AdSlot({ adGroupId, className, variant, theme }: AdSlotProps) {
 
@@ -288,7 +293,10 @@ export function LowestDayCard({ summary, monthLabel, sparkline }: LowestDayCardP
 export interface ScheduleListProps {
 export function ScheduleList({ rows }: ScheduleListProps) {
 
-// src/components/home/S
+// src/components/home/ShareButton.tsx
+export function ShareButton() {
+
+
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 

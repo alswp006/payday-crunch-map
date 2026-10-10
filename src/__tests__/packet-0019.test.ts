@@ -1,17 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
 import { execSync } from "node:child_process";
-import { MemoryRouter, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { mockTds, mockAnalytics, mockOpenToast } from "@/__tests__/__helpers__/mocks";
 import { BASE } from "@/test/fixtures";
 import { OUTFLOWS_KEY, SETTINGS_KEY } from "@/lib/store/keys";
-import App from "@/App";
 
 mockTds();
 mockAnalytics();
 
-// 이 테스트는 실제 라우팅(pathname, replace)을 본다 — useNavigate는 목킹하지 않는다.
+// 이 테스트는 실제 라우팅(pathname, replace)을 본다 — useNavigate·useLocation은 목킹하지 않는다.
+// mocks.ts는 import되는 순간 자기 react-router-dom 목(useLocation=mockLocation)을 호이스팅해 등록하므로,
+// 헬퍼를 import한 **뒤에** 목을 풀고 라우터를 쓰는 모듈은 그 뒤에 동적으로 불러온다(Items.test.tsx와 같은 방식).
+vi.doUnmock("react-router-dom");
+const { MemoryRouter, useLocation, useNavigate, useNavigationType } = await import("react-router-dom");
+const { default: App } = await import("@/App");
 
 const { probe } = vi.hoisted(() => ({ probe: vi.fn<() => boolean>() }));
 
@@ -62,8 +65,9 @@ function seed() {
   localStorage.setItem(OUTFLOWS_KEY, JSON.stringify({ version: 1, items: BASE.outflows }));
 }
 
+// 홈의 TDS Tab(이번 달/다음 달)도 벤더 구현상 role="tablist"라 이름으로 FloatingTabBar만 센다.
 function tabBars() {
-  return screen.queryAllByRole("tablist");
+  return screen.queryAllByRole("tablist", { name: "메인 네비게이션" });
 }
 
 let consoleError: ReturnType<typeof vi.spyOn>;
