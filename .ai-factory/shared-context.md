@@ -173,8 +173,10 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 - analytics.ts: export type LogFields = Record<string, string | number | boolean | null>; export const DWELL_MS = 3000; export function fireAndForget(call: () => unknown): void; export function logScreen(page: string, extra?: LogFields): void; export function logClick(name: string, extra?: LogFields): void; export function logImpression(name: string, extra?: LogFields): void; export function useScreenLog(page: string): void
 - balance/dayChange.ts: export function applyDayChange( item: Pick<Outflow, 'name' | 'day' | 'dayChange'>, newDay: number, today: LocalDate, ):; export function applyDayChangeToItem(item: Outflow, newDay: number, today: LocalDate): Outflow
 - balance/events.ts: export interface DayOverride; export function collectEvents(args:; export function buildMonthEvents(args: EventArgs): DayEvent[]
+- balance/homeModel.ts: export interface HomeCell; export interface HomeRow; export interface HomeSparkline; export interface HomeModel; export function buildHomeModel(args:
 - balance/projection.ts: export function buildProjection(args:
 - balance/resolveActualDate.ts: export function resolveActualDate(year: number, month: number, day: number, rule: WeekendRule): LocalDate
+- balance/simulate.ts: export function simulateShift( settings: PaySettings, outflows: Outflow[], itemId: string, toDay: number, today: LocalDa; export function bestShifts(settings: PaySettings, outflows: Outflow[], today: LocalDate): SimResult[]
 - balance/summary.ts: export function summarizeMonth(days: DayBalance[], month: YearMonth, today: LocalDate): MonthSummary
 - date/getToday.ts: export function getToday(): LocalDate
 - date/localDate.ts: export function daysInMonth(year: number, month: number): number; export function toLocalDate(year: number, month: number, day: number): LocalDate; export function parseLocalDate(date: LocalDate):; export function parseYearMonth(ym: YearMonth):; export function isValidLocalDate(value: unknown): value is LocalDate; export function isValidYearMonth(value: unknown): value is YearMonth; export function monthOf(date: LocalDate): YearMonth; export function addMonths(ym: YearMonth, n: number): YearMonth
@@ -187,9 +189,7 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 - store/load.ts: export function loadSettings():; export function loadOutflows():; export function loadMeta(): AppMeta | null
 - store/save.ts: export function saveSettings(settings: PaySettings): SaveResult; export function saveOutflows(items: Outflow[]): SaveResult; export function saveMeta(meta: AppMeta): SaveResult
 - store/storage.ts: export type StorageErrorKind = 'quota' | 'unknown'; export function readRaw(key: string): string | null; export function writeRaw(key: string, value: unknown): void; export function removeKey(key: string): void; export function probeStorage(): boolean; export function classifyStorageError(e: unknown): StorageErrorKind
-- store/validate.ts: export const MAX_OUTFLOWS = 30; export function isPlainObject(value: unknown): value is Record<string, unknown>; export function isIntInRange(value: unknown, min: number, max: number): value is number; export function isWeekendRule(value: unknown): value is WeekendRule; export function parseSettings(value: unknown): PaySettings | null; export function parseOutflowContainer(value: unknown): unknown[] | null; export function parseOutflow(value: unknown, seenIds: ReadonlySet<string>): Outflow | null; export function normalizeOutflows(rawItems: unknown[]):
-- types.ts: export type WeekendRule = 'none' | 'prevBusinessDay' | 'nextBusinessDay'; export type LocalDate = string; export type YearMonth = string; export interface PaySettings; export interface OutflowStore; export interface Outflow; export interface AppMeta; export interface DayEvent
-- utils.ts: export function cn(...classes: (string | boolean...
+- store/validate.ts: export const MAX_OUTFLOWS = 30; export function isPlainObject(value: unknown): value is Record<string, unknown>; export function isIntInRange(value: unknown, min: number, max: number): value is number; export function isWeekendRule(value: unknown): value is WeekendRule; export function parseSettings(value: unknown): PaySettings | null; export function parseOutflowContainer(value: unknown): unknown[] | null; export function parseOutflow(value: unknown, seenIds: ReadonlySet<string>): ...
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
@@ -200,6 +200,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0005: 읽을 때 검증기 + load 계열 (손상 복구·버전 불일치·30개 상한) (files: src/lib/store/validate.ts, src/lib/store/validate.test.ts, src/lib/store/load.ts, src/lib/store/load.test.ts)
 - 0006: 잔고 계산 엔진 코어 (날짜 보정·월 이벤트·투영·월 요약) (files: src/lib/balance/resolveActualDate.ts, src/lib/balance/events.ts, src/lib/balance/projection.ts, src/lib/balance/summary.ts, src/lib/balance/projection.test.ts)
 - 0007: 출금일 변경 적용 시점 (applyDayChange, applyDayChangeToItem) (files: src/lib/balance/dayChange.ts, src/lib/balance/dayChange.test.ts)
+- 0008: 출금일 이동 시뮬레이션 + 홈 화면 모델 selector (files: src/lib/balance/simulate.ts, src/lib/balance/simulate.test.ts, src/lib/balance/homeModel.ts, src/lib/balance/homeModel.test.ts)
 
 ## Available exports from existing files
 // src/App.tsx
@@ -269,10 +270,10 @@ export interface DayOverride {
 export function collectEvents(args: {
 export function buildMonthEvents(args: EventArgs): DayEvent[] {
 
-// src/lib/balance/projection.ts
-export function buildProjection(args: {
-
-// src/lib/balance/resolveActualDat
+// src/lib/balance/homeModel.ts
+export interface HomeCell {
+export interface HomeRow {
+export interface HomeS
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 
