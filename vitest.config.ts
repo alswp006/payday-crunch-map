@@ -10,7 +10,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./vitest.setup.ts'],
+    setupFiles: ['./vitest.setup.ts', './src/test/setup.ts'],
     // 테스트는 src/ 아래에만 둔다(규칙서: src/__tests__). vitest 기본 include는 점(.) 디렉토리까지
     // 훑어서, 이 폴더에 들어 있는 **vitest가 아닌** 테스트 파일을 수집하다 전체 실행이 exit 1로 끝난다.
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
