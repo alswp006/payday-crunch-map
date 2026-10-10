@@ -1,0 +1,21 @@
+/* 7열 달력 배치만 담는다. 색·글자 크기는 TDS 컴포넌트와 인라인 var(--adaptive*)가 맡는다. */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  row-gap: 4px;
+}
+
+.calendar-grid__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.calendar-grid__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
