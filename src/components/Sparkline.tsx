@@ -9,11 +9,17 @@ export function Sparkline({
   width = 320,
   height = 64,
   testId,
+  markIndex,
 }: {
   data: number[];
   width?: number;
   height?: number;
   testId?: string;
+  /**
+   * 강조할 점의 인덱스(예: 최저 잔고일). 넘기면 모든 점을 data-point-index로 남기고
+   * 이 인덱스의 점만 눈에 보이게 그린다(data-lowest="true"). null이면 강조 없이 점만 남긴다.
+   */
+  markIndex?: number | null;
 }) {
   if (!data || data.length < 2) return null;
 
@@ -28,6 +34,7 @@ export function Sparkline({
   });
   const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${p}`).join(" ");
   const area = `${line} L${width},${height} L0,${height} Z`;
+  const indexed = markIndex !== undefined;
 
   return (
     <svg
@@ -48,6 +55,21 @@ export function Sparkline({
         strokeLinejoin="round"
         strokeLinecap="round"
       />
+      {indexed &&
+        data.map((v, i) => {
+          const marked = i === markIndex;
+          return (
+            <circle
+              key={i}
+              data-point-index={i}
+              data-lowest={marked ? "true" : undefined}
+              cx={i * stepX}
+              cy={height - ((v - min) / span) * height}
+              r={marked ? 4 : 0}
+              fill={marked ? "var(--adaptiveRed500)" : "none"}
+            />
+          );
+        })}
     </svg>
   );
 }

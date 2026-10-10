@@ -140,6 +140,7 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
     TossPurchase.tsx
     TossRewardAd.tsx
     form/
+    home/
     items/
   hooks/
   lib/
@@ -194,7 +195,7 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 - store/load.ts: export function loadSettings():; export function loadOutflows():; export function loadMeta(): AppMeta | null
 - store/save.ts: export function saveSettings(settings: PaySettings): SaveResult; export function saveOutflows(items: Outflow[]): SaveResult; export function saveMeta(meta: AppMeta): SaveResult
 - store/storage.ts: export type StorageErrorKind = 'quota' | 'unknown'; export function readRaw(key: string): string | null; export function writeRaw(key: string, value: unknown): void; export function removeKey(key: string): void; export function probeStorage(): boolean; export function classifyStorageError(e: unknown): StorageErrorKind
-- store/validate.ts: export const MAX_OUTFLOWS = 30; export function isPlainObject(value: unknown): value is Record<string, unknown>; export function isIntInRange(value: unknown, min: number, max: number): value is number; export function isWeekendRule(value: unknown): value is WeekendRule; export function parseSettings(value: unknown): PaySettings | null; export function parseOutflowContainer(value: unknown): unknown[] | n...
+- store/validate.ts: export const MAX_OUTFLOWS = 30; export function isPlainObject(value: unknown): value is Record<string, unknown>; export function isIntInRange(value: unknown, min: number, max: number): value is number; export function isWeekendRule(value: unknown): value is WeekendRule; export function parseSettings(value: unknown): PaySettings | null; export function parseOutflowContainer(value: unknown): unk...
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
@@ -209,6 +210,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0009: 앱 데이터 상태 Context (AppDataProvider + 액션) (files: src/state/AppDataContext.tsx, src/state/AppDataContext.test.tsx)
 - 0010: 숫자 입력 필드 NumericField (공용 컴포넌트) (files: src/components/form/NumericField.tsx, src/components/form/NumericField.test.tsx)
 - 0012: 출금 항목 BottomSheet (추가·수정 공용 OutflowSheet) (files: src/components/items/OutflowSheet.tsx, src/components/items/OutflowSheet.test.tsx)
+- 0014: 잔고 달력 그리드 + 날짜 상세 시트 (files: src/components/home/CalendarGrid.tsx, src/components/home/CalendarGrid.css, src/components/home/DayDetailSheet.tsx, src/components/home/CalendarGrid.test.tsx)
 
 ## Available exports from existing files
 // src/App.tsx
@@ -263,6 +265,14 @@ export function TossRewardAd({
 // src/components/form/NumericField.tsx
 export function NumericField({
 
+// src/components/home/CalendarGrid.tsx
+export interface CalendarGridProps {
+export function CalendarGrid({ model, onDayClick }: CalendarGridProps) {
+
+// src/components/home/DayDetailSheet.tsx
+export interface DayDetailSheetProps {
+export function DayDetailSheet({ open, cell, onClose }: DayDetailSheetProps) {
+
 // src/components/items/OutflowSheet.tsx
 export interface OutflowSheetValues {
 export interface OutflowSheetProps {
@@ -274,14 +284,6 @@ export const DWELL_MS = 3000;
 export function fireAndForget(call: () => unknown): void {
 export function logScreen(page: string, extra?: LogFields): void {
 export function logClick(name: string, extra?: LogFields): void {
-export function logImpression(name: string, extra?: LogFields): void {
-export function useScreenLog(page: string): void {
-
-// src/lib/balance/dayChange.ts
-export function applyDayChange(
-export function applyDayChangeToItem(item: Outflow, newDay: number, today: LocalDate): Outflow {
-
-// src/lib/balance/events.
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 
