@@ -21,6 +21,7 @@ import type { ItemsRouteState, SetupRouteState } from '@/types/nav';
 import type { LocalDate } from '@/lib/types';
 
 const RECOVERED_TOAST = '저장된 정보를 불러오지 못해 다시 입력이 필요해요';
+const OUTFLOWS_RECOVERED_TOAST = '일부 출금 항목을 불러오지 못했어요';
 
 /** '2026-10-11' → '10월 11일' */
 function monthDayLabel(date: LocalDate): string {
@@ -31,7 +32,7 @@ function monthDayLabel(date: LocalDate): string {
 export default function Home() {
   const navigate = useNavigate();
   const { openToast } = useToast();
-  const { settings, outflows, meta, settingsRecovered, saveMeta } = useAppData();
+  const { settings, outflows, meta, settingsRecovered, outflowsRecovered, saveMeta } = useAppData();
 
   const today = getToday();
   const [monthIdx, setMonthIdx] = useState(0);
@@ -46,6 +47,14 @@ export default function Home() {
     if (settingsRecovered) openToast(RECOVERED_TOAST);
     navigate('/setup', { replace: true, state: { mode: 'onboarding' } satisfies SetupRouteState });
   }, [hasSettings, settingsRecovered, openToast, navigate]);
+
+  // 출금 항목이 손상돼 걸러졌으면 홈 진입 시 1회만 알린다.
+  const outflowsToasted = useRef(false);
+  useEffect(() => {
+    if (!hasSettings || !outflowsRecovered || outflowsToasted.current) return;
+    outflowsToasted.current = true;
+    openToast(OUTFLOWS_RECOVERED_TOAST);
+  }, [hasSettings, outflowsRecovered, openToast]);
 
   useMonthRollover({ today, enabled: hasSettings, meta, saveMeta, openToast });
 
