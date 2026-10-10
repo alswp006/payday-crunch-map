@@ -142,6 +142,9 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
   hooks/
   lib/
     analytics.ts
+    date/
+    format.test.ts
+    format.ts
     review.ts
     share.ts
     storage.ts
@@ -166,6 +169,9 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 
 ### Exports (src/lib/)
 - analytics.ts: export type LogFields = Record<string, string | number | boolean | null>; export const DWELL_MS = 3000; export function fireAndForget(call: () => unknown): void; export function logScreen(page: string, extra?: LogFields): void; export function logClick(name: string, extra?: LogFields): void; export function logImpression(name: string, extra?: LogFields): void; export function useScreenLog(page: string): void
+- date/getToday.ts: export function getToday(): LocalDate
+- date/localDate.ts: export function daysInMonth(year: number, month: number): number; export function toLocalDate(year: number, month: number, day: number): LocalDate; export function parseLocalDate(date: LocalDate):; export function parseYearMonth(ym: YearMonth):; export function isValidLocalDate(value: unknown): value is LocalDate; export function isValidYearMonth(value: unknown): value is YearMonth; export function monthOf(date: LocalDate): YearMonth; export function addMonths(ym: YearMonth, n: number): YearMonth
+- format.ts: export function formatWon(n: number): string; export function formatSignedWon(n: number): string; export function formatCompactWon(n: number): string; export function formatKoreanDate(date: LocalDate): string
 - review.ts: export function requestReviewOnce(key: string = REVIEW_REQUESTED_KEY): void
 - share.ts: export interface ShareAppOptions; export async function shareApp(opts: ShareAppOptions): Promise<void>
 - storage.ts: export function getItem<T>(key: string): T | null; export function setItem<T>(key: string, value: T): void; export function removeItem(key: string): void
@@ -187,11 +193,15 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 - SummaryHero.tsx: SummaryHero
 - TossPurchase.tsx: TossPurchase
 - TossRewardAd.tsx: TossRewardAd
+
+### Module Dependencies (import graph)
+  lib/format.ts → imports: lib/types, lib/date/localDate
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
 - 0001: 도메인 타입 + RouteState 계약 정의 (files: src/lib/types.ts, src/types/nav.ts)
 - 0002: 테스트 환경 + BASE 픽스처 + 전역 셋업 (files: package.json, vitest.config.ts, src/test/setup.ts, src/test/fixtures.ts, src/test/fixtures.test.ts)
+- 0003: 날짜·금액 포맷 유틸 (getToday, localDate, format) (files: src/lib/date/getToday.ts, src/lib/date/localDate.ts, src/lib/format.ts, src/lib/date/localDate.test.ts, src/lib/format.test.ts)
 
 ## Available exports from existing files
 // src/App.tsx
@@ -252,20 +262,14 @@ export function logClick(name: string, extra?: LogFields): void {
 export function logImpression(name: string, extra?: LogFields): void {
 export function useScreenLog(page: string): void {
 
-// src/lib/review.ts
-export function requestReviewOnce(key: string = REVIEW_REQUESTED_KEY): void {
+// src/lib/date/getToday.ts
+export function getToday(): LocalDate {
 
-// src/lib/share.ts
-export interface ShareAppOptions {
-export async function shareApp(opts: ShareAppOptions): Promise<void> {
-
-// src/lib/storage.ts
-export function getItem<T>(key: string): T | null {
-export function setItem<T>(key: string, value: T): void {
-export function removeItem(key: string): void {
-
-// src/lib/types.ts
-export
+// src/lib/date/localDate.ts
+export function daysInMonth(year: number, month: number): number {
+export function toLocalDate(year: number, month: number, day: number): LocalDate {
+export function parseLocalDate(date: LocalDate): { year: number; month: number; day: number } | null {
+export function parseYearMonth(ym: YearMonth): { year: number; month: number } | nu
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 
