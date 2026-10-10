@@ -1,73 +1,206 @@
-import { Top, Paragraph, Spacing, ListRow, Button } from '@toss/tds-mobile';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Asset, Button, ListRow, Spacing, Tab, Top, useToast } from '@toss/tds-mobile';
 import { useNavigate } from 'react-router-dom';
-import { ScreenScaffold } from '../components/ScreenScaffold';
-import { SummaryHero } from '../components/SummaryHero';
-import { Card } from '../components/Card';
+import { ScreenScaffold } from '@/components/ScreenScaffold';
+import { AdSlot } from '@/components/AdSlot';
+import { EmptyState } from '@/components/StateView';
+import { CalendarGrid } from '@/components/home/CalendarGrid';
+import { DayDetailSheet } from '@/components/home/DayDetailSheet';
+import { LowestDayCard } from '@/components/home/LowestDayCard';
+import { ScheduleList } from '@/components/home/ScheduleList';
+import { ShareButton } from '@/components/home/ShareButton';
+import { SimSection } from '@/components/home/SimSection';
+import { useAppData } from '@/state/AppDataContext';
+import { useMonthRollover } from '@/pages/home/useMonthRollover';
+import { buildHomeModel } from '@/lib/balance/homeModel';
+import type { HomeCell } from '@/lib/balance/homeModel';
+import { logClick } from '@/lib/analytics';
+import { addMonths, monthOf, parseLocalDate, parseYearMonth } from '@/lib/date/localDate';
+import { getToday } from '@/lib/date/getToday';
+import type { ItemsRouteState, SetupRouteState } from '@/types/nav';
+import type { LocalDate } from '@/lib/types';
 
-/**
- * Golden Home page — 대시보드/탭-루트 골든 레퍼런스.
- *
- * 다른 페이지를 쓸 때 이 패턴을 모방하라:
- * - ScreenScaffold로 감싼다(raw fragment 골격 금지) — safe-area + 100dvh 자동 처리.
- * - 화면 최상단에 SummaryHero로 시각 앵커를 만든다('휑함'의 가장 큰 원인은 앵커 부재).
- *   데이터가 있으면 value에 <Amount value={n} unit="원" typography="t1" />로 핵심 숫자를 크게 박아라.
- * - 1차 진입 액션은 SummaryHero 카드 내부 버튼(display="block", 전체폭)에 둔다.
- *   → 화면 중앙 부유/좌측 글자폭 버튼 금지. 하단 TabBar가 있으면 SubmitFooter와 겹치므로 카드 안에.
- * - 핵심 정보는 raw <div>가 아니라 Card로 묶어 위계를 만든다.
- * - 하단 탭이 필요하면(2~5탭): bottom={<FloatingTabBar items={[{label,path}...]} />}.
- *   ('TDS TabBar'는 존재하지 않는다 — 직접 만들지 말고 FloatingTabBar를 써라.)
- * - 카피는 CLAUDE.md "카피 규칙 — AI 냄새 금지"를 따른다: 기능 나열식 홍보 문구·상투구·
- *   generic 버튼("시작하기") 금지. 이 파일의 예시 문구도 앱 맥락에 맞게 교체 대상이다.
- *
- * Scaffold tokens (replaced by scaffold-toss.ts at project creation):
- *   Payday Crunch Map -> the app's display name
- *   월세·카드값·구독료 출금일이 월급일 전에 몰리는 날, 잔고가 가장 얇아지는 날을 달력으로 찍어줘요    -> the one-line description
- */
+const RECOVERED_TOAST = '저장된 정보를 불러오지 못해 다시 입력이 필요해요';
 
-// ⚠ 이 목록은 골격 예시다 — 앱의 실제 콘텐츠(핵심 지표·최근 기록·바로가기)로 반드시 교체하라.
-// '간편한 사용/빠른 처리' 같은 기능 나열식 홍보 문구는 카피 규칙(CLAUDE.md "AI 냄새 금지") 위반이다.
-// 사용자가 이 화면에서 실제로 확인할 정보를 넣어라 — 아래처럼 데이터가 사는 행으로.
-const HIGHLIGHTS = [
-  { title: '오늘', description: '아직 기록이 없어요' },
-  { title: '이번 주', description: '기록 3건 · 평균 12분' },
-];
+/** '2026-10-11' → '10월 11일' */
+function monthDayLabel(date: LocalDate): string {
+  const p = parseLocalDate(date);
+  return p ? `${p.month}월 ${p.day}일` : date;
+}
 
 export default function Home() {
   const navigate = useNavigate();
+  const { openToast } = useToast();
+  const { settings, outflows, meta, settingsRecovered, saveMeta } = useAppData();
+
+  const today = getToday();
+  const [monthIdx, setMonthIdx] = useState(0);
+  const [sheet, setSheet] = useState<{ date: LocalDate; open: boolean } | null>(null);
+
+  // 설정이 없으면 온보딩으로 보낸다. 손상 복구였을 때만 이유를 알린다.
+  const redirected = useRef(false);
+  const hasSettings = settings !== null;
+  useEffect(() => {
+    if (hasSettings || redirected.current) return;
+    redirected.current = true;
+    if (settingsRecovered) openToast(RECOVERED_TOAST);
+    navigate('/setup', { replace: true, state: { mode: 'onboarding' } satisfies SetupRouteState });
+  }, [hasSettings, settingsRecovered, openToast, navigate]);
+
+  useMonthRollover({ today, enabled: hasSettings, meta, saveMeta, openToast });
+
+  const thisMonth = monthOf(today);
+  const nextMonth = addMonths(thisMonth, 1);
+  const viewMonth = monthIdx === 0 ? thisMonth : nextMonth;
+  const thisLabel = parseYearMonth(thisMonth)?.month ?? 0;
+  const nextLabel = parseYearMonth(nextMonth)?.month ?? 0;
+
+  const model = useMemo(
+    () => (settings ? buildHomeModel({ settings, outflows, today, month: viewMonth }) : null),
+    [settings, outflows, today, viewMonth],
+  );
+
+  if (!settings || !model) return null;
+
+  const tooOld = model.balanceHidden;
+  const noOutflows = outflows.length === 0;
+  const showCard = !tooOld && !noOutflows && model.summary.lowest !== null;
+  const showSim = !tooOld && !noOutflows;
+  const adGroupId: string | undefined = import.meta.env.VITE_TOSS_AD_GROUP_ID;
+  const sheetCell: HomeCell | null = sheet ? (model.cells.find((c) => c.date === sheet.date) ?? null) : null;
+
+  const goSetup = (state: SetupRouteState) => navigate('/setup', { state });
+  const goBalance = () => {
+    logClick('stale_balance_tap');
+    goSetup({ mode: 'edit', focus: 'balance' });
+  };
 
   return (
     <ScreenScaffold
-      top={<Top title={<Top.TitleParagraph>텅장달력</Top.TitleParagraph>} />}
+      top={
+        <Top
+          title={<Top.TitleParagraph>텅장달력</Top.TitleParagraph>}
+          right={
+            <Button
+              variant="weak"
+              size="small"
+              onClick={() => {
+                logClick('setup_edit');
+                goSetup({ mode: 'edit' });
+              }}
+            >
+              월급·잔고
+            </Button>
+          }
+        />
+      }
     >
-      {/* 시각 앵커: 헤드라인 + 카드 내 진입 버튼(부유 금지, display="block" 전체폭).
-          데이터 앱이면 value를 <Amount typography="t1" />(핵심 숫자)로 교체하라. */}
-      <SummaryHero
-        label="텅장달력"
-        value={<Paragraph.Text typography="t2">월세·카드값·구독료 출금일이 월급일 전에 몰리는 날, 잔고가 가장 얇아지는 날을 달력으로 찍어줘요</Paragraph.Text>}
-        caption="로그인 없이 바로 쓸 수 있어요"
-        action={
-          // 라벨은 앱의 핵심 행동 동사로 교체하라 — "연봉 계산하기"/"기록 남기기" 등.
-          // generic "시작하기"/"확인"은 카피 규칙 위반. onClick도 실제 첫 화면 경로로.
-          <Button variant="fill" display="block" onClick={() => navigate('/')}>
-            첫 결과 보기
-          </Button>
-        }
-        testId="home-hero"
-      />
+      <Tab
+        onChange={(i) => {
+          setMonthIdx(i === 1 ? 1 : 0);
+          setSheet(null);
+        }}
+      >
+        <Tab.Item selected={monthIdx === 0}>{`이번 달 (${thisLabel}월)`}</Tab.Item>
+        <Tab.Item selected={monthIdx === 1}>{`다음 달 (${nextLabel}월)`}</Tab.Item>
+      </Tab>
+      <Spacing size={16} />
 
-      <Spacing size={24} />
+      <div data-testid="free-tier">
+        {model.isStale && !tooOld && (
+          <>
+            <ListRow
+              data-testid="stale-balance-row"
+              withArrow
+              onClick={goBalance}
+              contents={
+                <ListRow.Texts
+                  type="2RowTypeA"
+                  top={`잔고 기준일이 ${monthDayLabel(settings.balanceAsOf)}이에요`}
+                  bottom="지금 잔고로 바꾸기"
+                />
+              }
+            />
+            <Spacing size={16} />
+          </>
+        )}
 
-      {/* 핵심 정보는 Card로 묶기(raw div 금지) — 위계 생성 */}
-      <Card testId="home-highlights">
-        {HIGHLIGHTS.map((h, idx) => (
-          <ListRow
-            key={idx}
-            contents={<ListRow.Texts type="2RowTypeA" top={h.title} bottom={h.description} />}
+        {tooOld ? (
+          <EmptyState
+            testId="too-old-panel"
+            icon={<Asset.ContentIcon name="icon-warning-circle" alt="" style={{ width: 48, height: 48 }} />}
+            title={`잔고 기준일이 너무 오래됐어요 (${monthDayLabel(settings.balanceAsOf)})`}
+            description="지금 잔고를 넣으면 월급 전 최저 잔고일을 다시 찍어드려요"
+            action={
+              <div style={{ width: '100%' }}>
+                <Button variant="fill" size="large" display="block" onClick={goBalance}>
+                  지금 잔고 입력
+                </Button>
+              </div>
+            }
           />
-        ))}
-      </Card>
+        ) : noOutflows ? (
+          <EmptyState
+            testId="empty-panel"
+            icon={<Asset.ContentIcon name="icon-plus-small-mono" alt="" style={{ width: 48, height: 48 }} />}
+            title="출금 항목을 등록하면 잔고가 얇아지는 날을 찍어드려요"
+            action={
+              <div style={{ width: '100%' }}>
+                <Button
+                  variant="fill"
+                  size="large"
+                  display="block"
+                  onClick={() => {
+                    logClick('empty_add_outflow');
+                    navigate('/items', { state: { openAdd: true } satisfies ItemsRouteState });
+                  }}
+                >
+                  출금 항목 추가
+                </Button>
+              </div>
+            }
+          />
+        ) : (
+          <LowestDayCard
+            summary={model.summary}
+            monthLabel={monthIdx === 0 ? '이번 달' : `${nextLabel}월`}
+            sparkline={model.sparkline}
+          />
+        )}
 
+        <Spacing size={16} />
+        <CalendarGrid model={model} onDayClick={(cell) => setSheet({ date: cell.date, open: true })} />
+        <Spacing size={16} />
+        <ScheduleList rows={model.rows} />
+      </div>
+
+      {adGroupId ? (
+        <>
+          <Spacing size={16} />
+          <AdSlot adGroupId={adGroupId} />
+        </>
+      ) : null}
+
+      {showSim ? (
+        <>
+          <Spacing size={16} />
+          <SimSection settings={settings} outflows={outflows} today={today} />
+        </>
+      ) : null}
+
+      {showCard ? (
+        <>
+          <Spacing size={24} />
+          <ShareButton />
+        </>
+      ) : null}
       <Spacing size={24} />
+
+      <DayDetailSheet
+        open={sheet?.open === true}
+        cell={sheetCell}
+        onClose={() => setSheet((s) => (s ? { ...s, open: false } : s))}
+      />
     </ScreenScaffold>
   );
 }
