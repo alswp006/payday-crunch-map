@@ -142,6 +142,7 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
   hooks/
   lib/
     analytics.ts
+    balance/
     date/
     format.test.ts
     format.ts
@@ -170,6 +171,10 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 
 ### Exports (src/lib/)
 - analytics.ts: export type LogFields = Record<string, string | number | boolean | null>; export const DWELL_MS = 3000; export function fireAndForget(call: () => unknown): void; export function logScreen(page: string, extra?: LogFields): void; export function logClick(name: string, extra?: LogFields): void; export function logImpression(name: string, extra?: LogFields): void; export function useScreenLog(page: string): void
+- balance/events.ts: export interface DayOverride; export function collectEvents(args:; export function buildMonthEvents(args: EventArgs): DayEvent[]
+- balance/projection.ts: export function buildProjection(args:
+- balance/resolveActualDate.ts: export function resolveActualDate(year: number, month: number, day: number, rule: WeekendRule): LocalDate
+- balance/summary.ts: export function summarizeMonth(days: DayBalance[], month: YearMonth, today: LocalDate): MonthSummary
 - date/getToday.ts: export function getToday(): LocalDate
 - date/localDate.ts: export function daysInMonth(year: number, month: number): number; export function toLocalDate(year: number, month: number, day: number): LocalDate; export function parseLocalDate(date: LocalDate):; export function parseYearMonth(ym: YearMonth):; export function isValidLocalDate(value: unknown): value is LocalDate; export function isValidYearMonth(value: unknown): value is YearMonth; export function monthOf(date: LocalDate): YearMonth; export function addMonths(ym: YearMonth, n: number): YearMonth
 - format.ts: export function formatWon(n: number): string; export function formatSignedWon(n: number): string; export function formatCompactWon(n: number): string; export function formatKoreanDate(date: LocalDate): string
@@ -188,21 +193,7 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 ### Components (src/components/)
 - AdSlot.tsx: AdSlot
 - Amount.tsx: Amount
-- BottomCTA.tsx: SubmitFooter, ButtonStack
-- Card.tsx: Card
-- CountUp.tsx: CountUp
-- FloatingTabBar.tsx: FloatingTabBar
-- MiniBar.tsx: MiniBar
-- PageShell.tsx: PageShell
-- ScreenScaffold.tsx: ScreenScaffold
-- Sparkline.tsx: Sparkline
-- StateView.tsx: EmptyState, LoadingState
-- SummaryHero.tsx: SummaryHero
-- TossPurchase.tsx: TossPurchase
-- TossRewardAd.tsx: TossRewardAd
-
-### Module Dependencies (import graph)
-  lib/format.ts → imports: lib/types, lib/date/localDate
+- BottomCTA.ts...
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
@@ -211,6 +202,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0003: 날짜·금액 포맷 유틸 (getToday, localDate, format) (files: src/lib/date/getToday.ts, src/lib/date/localDate.ts, src/lib/format.ts, src/lib/date/localDate.test.ts, src/lib/format.test.ts)
 - 0004: 저장소 어댑터 + save 계열 + probeStorage + id 생성 (files: src/lib/store/storage.ts, src/lib/store/keys.ts, src/lib/store/id.ts, src/lib/store/save.ts, src/lib/store/save.test.ts)
 - 0005: 읽을 때 검증기 + load 계열 (손상 복구·버전 불일치·30개 상한) (files: src/lib/store/validate.ts, src/lib/store/validate.test.ts, src/lib/store/load.ts, src/lib/store/load.test.ts)
+- 0006: 잔고 계산 엔진 코어 (날짜 보정·월 이벤트·투영·월 요약) (files: src/lib/balance/resolveActualDate.ts, src/lib/balance/events.ts, src/lib/balance/projection.ts, src/lib/balance/summary.ts, src/lib/balance/projection.test.ts)
 
 ## Available exports from existing files
 // src/App.tsx
@@ -271,14 +263,19 @@ export function logClick(name: string, extra?: LogFields): void {
 export function logImpression(name: string, extra?: LogFields): void {
 export function useScreenLog(page: string): void {
 
-// src/lib/date/getToday.ts
-export function getToday(): LocalDate {
+// src/lib/balance/events.ts
+export interface DayOverride {
+export function collectEvents(args: {
+export function buildMonthEvents(args: EventArgs): DayEvent[] {
 
-// src/lib/date/localDate.ts
-export function daysInMonth(year: number, month: number): number {
-export function toLocalDate(year: number, month: number, day: number): LocalDate {
-export function parseLocalDate(date: LocalDate): { year: number; month: number; day: number } | null {
-export function parseYearMonth(ym: YearMonth): { year: number; month: number } | nu
+// src/lib/balance/projection.ts
+export function buildProjection(args: {
+
+// src/lib/balance/resolveActualDate.ts
+export function resolveActualDate(year: number, month: number, day: number, rule: WeekendRule): LocalDate {
+
+// src/lib/balance/summary.ts
+export function su
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 
