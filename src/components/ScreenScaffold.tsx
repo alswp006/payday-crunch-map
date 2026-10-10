@@ -18,15 +18,18 @@ export function ScreenScaffold({
   top,
   children,
   bottom,
+  flushX = false,
 }: {
   top?: ReactNode;
   children: ReactNode;
   bottom?: ReactNode;
+  /** 본문 좌우 패딩을 없앤다 — TextField(box)처럼 자체 20px 여백을 가진 폼 화면용(CTA 20px과 정렬선이 맞는다). */
+  flushX?: boolean;
 }) {
   return (
     <PageShell style={top ? { paddingTop: 0 } : undefined}>
       {top}
-      <div style={{ padding: "16px 16px 0" }}>{children}</div>
+      <div style={{ padding: flushX ? "16px 0 0" : "16px 16px 0" }}>{children}</div>
       {bottom}
     </PageShell>
   );

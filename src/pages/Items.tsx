@@ -187,7 +187,7 @@ export default function Items() {
               </Paragraph.Text>
               <Spacing size={12} />
               <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <Chip kind="action" wrap>
+                <Chip kind="action" wrap margin="none" style={{ justifyContent: 'center' }}>
                   {PRESET_NAMES.map((name) => (
                     <ChipItem key={name} onClick={() => handlePreset(name)}>
                       {name}

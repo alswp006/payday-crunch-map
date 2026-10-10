@@ -90,6 +90,7 @@ export default function Setup() {
 
   return (
     <ScreenScaffold
+      flushX
       top={
         <Top
           title={<Top.TitleParagraph>{editing ? '월급·잔고' : '월급과 잔고를 알려주세요'}</Top.TitleParagraph>}
@@ -129,11 +130,13 @@ export default function Setup() {
         />
       </div>
       <Spacing size={12} />
-      {/* TextField(box)의 내부 좌측 여백과 라벨·칩의 시작선을 맞춘다. */}
+      {/* TextField(box)의 자체 여백(20px)과 라벨·칩의 시작선을 맞춘다. */}
       <div style={{ paddingInline: 20 }}>
-        <Paragraph.Text typography="t6">주말이면</Paragraph.Text>
+        <div style={{ paddingInline: 5 }}>
+          <Paragraph.Text typography="t6">주말이면</Paragraph.Text>
+        </div>
         <Spacing size={8} />
-        <Chip kind="select" wrap>
+        <Chip kind="select" wrap margin="none">
           {WEEKEND_OPTIONS.map((option) => (
             <ChipItem
               key={option.rule}
@@ -161,9 +164,11 @@ export default function Setup() {
       {asOfText ? (
         <>
           <Spacing size={8} />
-          <Paragraph.Text typography="t7" color="var(--adaptiveGrey600)">
-            {asOfText}
-          </Paragraph.Text>
+          <div style={{ paddingInline: 20 }}>
+            <Paragraph.Text typography="t7" color="var(--adaptiveGrey600)">
+              {asOfText}
+            </Paragraph.Text>
+          </div>
         </>
       ) : null}
       {/* 하단 고정 버튼 아래로도 스크롤돼 마지막 칸이 가려지지 않게 한다. */}
