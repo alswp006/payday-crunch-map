@@ -212,6 +212,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0012: 출금 항목 BottomSheet (추가·수정 공용 OutflowSheet) (files: src/components/items/OutflowSheet.tsx, src/components/items/OutflowSheet.test.tsx)
 - 0014: 잔고 달력 그리드 + 날짜 상세 시트 (files: src/components/home/CalendarGrid.tsx, src/components/home/CalendarGrid.css, src/components/home/DayDetailSheet.tsx, src/components/home/CalendarGrid.test.tsx)
 - 0015: 출금 일정 목록 + 최저 잔고일 카드 + 공유 버튼 (files: src/components/home/ScheduleList.tsx, src/components/home/LowestDayCard.tsx, src/components/home/ShareButton.tsx, src/components/home/HomeCards.test.tsx)
+- 0016: 출금일 바꿔보기 BottomSheet (ShiftSheet) (files: src/components/home/ShiftSheet.tsx, src/components/home/ShiftSheet.test.tsx)
 
 ## Available exports from existing files
 // src/App.tsx
@@ -285,9 +286,9 @@ export function ScheduleList({ rows }: ScheduleListProps) {
 // src/components/home/ShareButton.tsx
 export function ShareButton() {
 
-// src/components/items/OutflowSheet.tsx
-export interface OutflowSheetValues {
-export interface OutflowSheetProps {
+// src/components/home/ShiftSheet.tsx
+export interface ShiftSheetProps {
+export function ShiftSheet(props: ShiftShe
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 

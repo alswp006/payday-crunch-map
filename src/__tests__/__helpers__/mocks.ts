@@ -462,127 +462,138 @@ export function mockTds() {
 // ── @apps-in-toss/web-framework ──
 // Mocks the REAL SDK exports (verified from .d.ts).
 // SDK is imperative (no hooks). Callback-style APIs invoke onEvent immediately for test speed.
-export function mockAppsInToss() {
-  vi.mock("@apps-in-toss/web-framework", () => {
-    const Storage = {
-      setItem: vi.fn(async (k: string, v: string) => { localStorage.setItem(k, v); }),
-      getItem: vi.fn(async (k: string) => localStorage.getItem(k)),
-      removeItem: vi.fn(async (k: string) => { localStorage.removeItem(k); }),
-      clearItems: vi.fn(async () => { localStorage.clear(); }),
-    };
+//
+// ⚠ 이 목은 **호출한 시점에** 등록된다(vi.doMock). 함수 안의 vi.mock은 vitest가 이 파일을 import하는
+// 순간 끌어올려 등록하는데, 그러면 테스트 파일이 직접 거는 `vi.mock("@apps-in-toss/web-framework")`
+// (광고 로드·보상 콜백을 테스트마다 갈아 끼우는 용도)를 조용히 덮어쓴다 — 헬퍼를 import만 해도.
+// 그래서 이 목은 import 시점에 등록하지 않는다. 대신:
+//  · 정적으로 import한 컴포넌트에 SDK 목을 걸려면 테스트 파일 최상단에
+//      vi.mock("@apps-in-toss/web-framework", () => createAppsInTossMock());
+//    를 쓴다(그대로 끌어올려진다). 테스트가 필요한 export만 덮으려면 팩토리에서 펼쳐 쓴다.
+//  · mockAppsInToss()는 그 호출 **이후에** 동적으로 import되는 모듈에만 적용된다.
+export function createAppsInTossMock() {
+  const Storage = {
+    setItem: vi.fn(async (k: string, v: string) => { localStorage.setItem(k, v); }),
+    getItem: vi.fn(async (k: string) => localStorage.getItem(k)),
+    removeItem: vi.fn(async (k: string) => { localStorage.removeItem(k); }),
+    clearItems: vi.fn(async () => { localStorage.clear(); }),
+  };
 
-    const Analytics = {
-      screen: vi.fn(async () => {}),
-      impression: vi.fn(async () => {}),
-      click: vi.fn(async () => {}),
-    };
+  const Analytics = {
+    screen: vi.fn(async () => {}),
+    impression: vi.fn(async () => {}),
+    click: vi.fn(async () => {}),
+  };
 
-    // Imperative ad API — auto-fires onEvent so tests don't hang
-    const loadFullScreenAd = vi.fn((opts: { onEvent?: (e: any) => void; onError?: (e: any) => void }) => {
-      setTimeout(() => opts.onEvent?.({ type: "loaded" }), 0);
-    });
-    const showFullScreenAd = vi.fn((opts: { onEvent?: (e: any) => void; onError?: (e: any) => void }) => {
-      setTimeout(() => opts.onEvent?.({ type: "rewarded" }), 0);
-    });
-    // TossAds banner API (real SDK exports — see @apps-in-toss/web-bridge .d.ts)
-    const TossAds = {
-      initialize: Object.assign(vi.fn(), { isSupported: () => true }),
-      attachBanner: Object.assign(
-        vi.fn(() => ({ destroy: vi.fn() })),
-        { isSupported: () => true },
-      ),
-      attach: Object.assign(vi.fn(), { isSupported: () => true }),
-      destroy: Object.assign(vi.fn(), { isSupported: () => true }),
-      destroyAll: Object.assign(vi.fn(), { isSupported: () => true }),
-    };
-
-    // IAP
-    const createOneTimePurchaseOrder = vi.fn((opts: any) => {
-      setTimeout(async () => {
-        const granted = await opts.options.processProductGrant({ orderId: "test-order-1" });
-        if (granted) {
-          opts.onEvent?.({
-            type: "success",
-            data: {
-              orderId: "test-order-1",
-              displayName: "Test Product",
-              displayAmount: "1,000원",
-              amount: 1000,
-              currency: "KRW",
-              fraction: 0,
-              miniAppIconUrl: null,
-            },
-          });
-        }
-      }, 0);
-    });
-    const createSubscriptionPurchaseOrder = vi.fn((opts: any) => {
-      setTimeout(async () => {
-        const granted = await opts.options.processProductGrant({
-          orderId: "test-sub-1",
-          subscriptionId: "test-sub",
-        });
-        if (granted) {
-          opts.onEvent?.({
-            type: "success",
-            data: {
-              orderId: "test-sub-1",
-              displayName: "Test Subscription",
-              displayAmount: "4,900원/월",
-              amount: 4900,
-              currency: "KRW",
-              fraction: 0,
-              miniAppIconUrl: null,
-            },
-          });
-        }
-      }, 0);
-    });
-
-    return {
-      Storage,
-      Analytics,
-
-      generateHapticFeedback: vi.fn(),
-      grantPromotionReward: vi.fn(async () => {}),
-      getIsTossLoginIntegratedService: vi.fn(async () => false),
-
-      loadFullScreenAd,
-      showFullScreenAd,
-      TossAds,
-
-      // IAP 실제 API는 IAP 네임스페이스 아래에 있다(.d.ts 검증). 각 메서드는 cleanup 함수 반환.
-      // (최상위 이름은 하위호환용으로 유지 — 실제 SDK 최상위 export 아님)
-      createOneTimePurchaseOrder,
-      createSubscriptionPurchaseOrder,
-      IAP: {
-        createOneTimePurchaseOrder: vi.fn((opts: any) => {
-          createOneTimePurchaseOrder(opts);
-          return () => {};
-        }),
-        createSubscriptionPurchaseOrder: vi.fn((opts: any) => {
-          createSubscriptionPurchaseOrder(opts);
-          return () => {};
-        }),
-      },
-
-      // Misc bridge
-      share: vi.fn(async () => {}),
-      // 토스 인앱 딥링크 생성. devtools mock이 주는 형식(`https://toss.im/share/mock<path>`)을
-      // 그대로 흉내낸다 — 심이 벤더의 *모양*과 어긋나면 앱이 아니라 심이 거짓말한다.
-      getTossShareLink: vi.fn(async (path: string, _ogImageUrl?: string) => `https://toss.im/share/mock${path}`),
-      setClipboardText: vi.fn(async () => {}),
-      getClipboardText: vi.fn(async () => ""),
-      requestReview: vi.fn(async () => {}),
-      openURL: vi.fn(async () => {}),
-      getPlatformOS: vi.fn(async () => "ios"),
-      getNetworkStatus: vi.fn(async () => ({ connected: true, type: "wifi" })),
-      getTossAppVersion: vi.fn(async () => "5.0.0"),
-      getOperationalEnvironment: vi.fn(async () => "development"),
-      getPermission: vi.fn(async () => ({ granted: true })),
-      getSchemeUri: vi.fn(async () => "intoss://test-app"),
-    };
+  // Imperative ad API — auto-fires onEvent so tests don't hang
+  const loadFullScreenAd = vi.fn((opts: { onEvent?: (e: any) => void; onError?: (e: any) => void }) => {
+    setTimeout(() => opts.onEvent?.({ type: "loaded" }), 0);
   });
+  const showFullScreenAd = vi.fn((opts: { onEvent?: (e: any) => void; onError?: (e: any) => void }) => {
+    setTimeout(() => opts.onEvent?.({ type: "rewarded" }), 0);
+  });
+  // TossAds banner API (real SDK exports — see @apps-in-toss/web-bridge .d.ts)
+  const TossAds = {
+    initialize: Object.assign(vi.fn(), { isSupported: () => true }),
+    attachBanner: Object.assign(
+      vi.fn(() => ({ destroy: vi.fn() })),
+      { isSupported: () => true },
+    ),
+    attach: Object.assign(vi.fn(), { isSupported: () => true }),
+    destroy: Object.assign(vi.fn(), { isSupported: () => true }),
+    destroyAll: Object.assign(vi.fn(), { isSupported: () => true }),
+  };
+
+  // IAP
+  const createOneTimePurchaseOrder = vi.fn((opts: any) => {
+    setTimeout(async () => {
+      const granted = await opts.options.processProductGrant({ orderId: "test-order-1" });
+      if (granted) {
+        opts.onEvent?.({
+          type: "success",
+          data: {
+            orderId: "test-order-1",
+            displayName: "Test Product",
+            displayAmount: "1,000원",
+            amount: 1000,
+            currency: "KRW",
+            fraction: 0,
+            miniAppIconUrl: null,
+          },
+        });
+      }
+    }, 0);
+  });
+  const createSubscriptionPurchaseOrder = vi.fn((opts: any) => {
+    setTimeout(async () => {
+      const granted = await opts.options.processProductGrant({
+        orderId: "test-sub-1",
+        subscriptionId: "test-sub",
+      });
+      if (granted) {
+        opts.onEvent?.({
+          type: "success",
+          data: {
+            orderId: "test-sub-1",
+            displayName: "Test Subscription",
+            displayAmount: "4,900원/월",
+            amount: 4900,
+            currency: "KRW",
+            fraction: 0,
+            miniAppIconUrl: null,
+          },
+        });
+      }
+    }, 0);
+  });
+
+  return {
+    Storage,
+    Analytics,
+
+    generateHapticFeedback: vi.fn(),
+    grantPromotionReward: vi.fn(async () => {}),
+    getIsTossLoginIntegratedService: vi.fn(async () => false),
+
+    loadFullScreenAd,
+    showFullScreenAd,
+    TossAds,
+
+    // IAP 실제 API는 IAP 네임스페이스 아래에 있다(.d.ts 검증). 각 메서드는 cleanup 함수 반환.
+    // (최상위 이름은 하위호환용으로 유지 — 실제 SDK 최상위 export 아님)
+    createOneTimePurchaseOrder,
+    createSubscriptionPurchaseOrder,
+    IAP: {
+      createOneTimePurchaseOrder: vi.fn((opts: any) => {
+        createOneTimePurchaseOrder(opts);
+        return () => {};
+      }),
+      createSubscriptionPurchaseOrder: vi.fn((opts: any) => {
+        createSubscriptionPurchaseOrder(opts);
+        return () => {};
+      }),
+    },
+
+    // Misc bridge
+    share: vi.fn(async () => {}),
+    // 토스 인앱 딥링크 생성. devtools mock이 주는 형식(`https://toss.im/share/mock<path>`)을
+    // 그대로 흉내낸다 — 심이 벤더의 *모양*과 어긋나면 앱이 아니라 심이 거짓말한다.
+    getTossShareLink: vi.fn(async (path: string, _ogImageUrl?: string) => `https://toss.im/share/mock${path}`),
+    setClipboardText: vi.fn(async () => {}),
+    getClipboardText: vi.fn(async () => ""),
+    requestReview: vi.fn(async () => {}),
+    openURL: vi.fn(async () => {}),
+    getPlatformOS: vi.fn(async () => "ios"),
+    getNetworkStatus: vi.fn(async () => ({ connected: true, type: "wifi" })),
+    getTossAppVersion: vi.fn(async () => "5.0.0"),
+    getOperationalEnvironment: vi.fn(async () => "development"),
+    getPermission: vi.fn(async () => ({ granted: true })),
+    getSchemeUri: vi.fn(async () => "intoss://test-app"),
+  };
+}
+
+export function mockAppsInToss() {
+  vi.doMock("@apps-in-toss/web-framework", () => createAppsInTossMock());
 }
 
 // ── 계측 래퍼 (@/lib/analytics · review · share) ──
@@ -619,16 +630,23 @@ export function mockAnalytics() {
 
 // ── Toss Reward Ad Component ──
 // TossRewardAd is a project-local component that wraps content behind ad viewing.
-// In tests, render the children directly (ad always "watched").
+// `mockTossRewardAd()`를 부른 테스트에서만 children을 바로 그린다(광고는 늘 '시청 완료').
+// vitest는 함수 안의 vi.mock도 이 파일을 import하는 순간 등록해 버린다 — 그래서 팩토리는 항상
+// 원본을 감싸 두고, 렌더 시점에 스텁 여부를 본다. 호출하지 않은 테스트는 실제 게이트를 그대로 쓴다.
+const rewardAdStub = vi.hoisted(() => ({ enabled: false }));
+
 export function mockTossRewardAd() {
-  vi.mock("@/components/TossRewardAd", () => ({
-    TossRewardAd: ({ children, onReward }: any) => {
+  rewardAdStub.enabled = true;
+  vi.mock("@/components/TossRewardAd", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/components/TossRewardAd")>();
+    const Gate = (props: any) => {
+      if (!rewardAdStub.enabled) return React.createElement(actual.TossRewardAd, props);
       // Auto-trigger onReward in tests to unlock content
-      if (onReward) setTimeout(onReward, 0);
-      return children;
-    },
-    default: ({ children }: any) => children,
-  }));
+      if (props.onReward) setTimeout(props.onReward, 0);
+      return props.children;
+    };
+    return { ...actual, TossRewardAd: Gate, default: Gate };
+  });
 }
 
 // ── react-router-dom ──
