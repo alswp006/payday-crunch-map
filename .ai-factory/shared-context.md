@@ -158,6 +158,9 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
     Items.tsx
     Setup.tsx
     __TdsGallery.tsx
+  state/
+    AppDataContext.test.tsx
+    AppDataContext.tsx
   styles/
     globals.css
     reward-ad.css
@@ -189,7 +192,7 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 - store/load.ts: export function loadSettings():; export function loadOutflows():; export function loadMeta(): AppMeta | null
 - store/save.ts: export function saveSettings(settings: PaySettings): SaveResult; export function saveOutflows(items: Outflow[]): SaveResult; export function saveMeta(meta: AppMeta): SaveResult
 - store/storage.ts: export type StorageErrorKind = 'quota' | 'unknown'; export function readRaw(key: string): string | null; export function writeRaw(key: string, value: unknown): void; export function removeKey(key: string): void; export function probeStorage(): boolean; export function classifyStorageError(e: unknown): StorageErrorKind
-- store/validate.ts: export const MAX_OUTFLOWS = 30; export function isPlainObject(value: unknown): value is Record<string, unknown>; export function isIntInRange(value: unknown, min: number, max: number): value is number; export function isWeekendRule(value: unknown): value is WeekendRule; export function parseSettings(value: unknown): PaySettings | null; export function parseOutflowContainer(value: unknown): unknown[] | null; export function parseOutflow(value: unknown, seenIds: ReadonlySet<string>): ...
+- store/validate.ts: export const MAX_OUTFLOWS = 30; export function isPlainObject(value: unknown): value is Record<string, unknown>; export function isIntInRange(value: unknown, min: number, max: number): value is number; export function isWeekendRule(value: unknown): value is WeekendRule; export function parseSettings(value: unknown): PaySettings | null; export function parseOutflowContainer(value: unknown): unknown[] | null; export function ...
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
@@ -201,6 +204,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0006: 잔고 계산 엔진 코어 (날짜 보정·월 이벤트·투영·월 요약) (files: src/lib/balance/resolveActualDate.ts, src/lib/balance/events.ts, src/lib/balance/projection.ts, src/lib/balance/summary.ts, src/lib/balance/projection.test.ts)
 - 0007: 출금일 변경 적용 시점 (applyDayChange, applyDayChangeToItem) (files: src/lib/balance/dayChange.ts, src/lib/balance/dayChange.test.ts)
 - 0008: 출금일 이동 시뮬레이션 + 홈 화면 모델 selector (files: src/lib/balance/simulate.ts, src/lib/balance/simulate.test.ts, src/lib/balance/homeModel.ts, src/lib/balance/homeModel.test.ts)
+- 0009: 앱 데이터 상태 Context (AppDataProvider + 액션) (files: src/state/AppDataContext.tsx, src/state/AppDataContext.test.tsx)
 
 ## Available exports from existing files
 // src/App.tsx
