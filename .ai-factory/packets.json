@@ -1,0 +1,780 @@
+[
+  {
+    "id": "0001",
+    "title": "도메인 타입 + RouteState 계약 정의",
+    "epic": "Epic 1. 데이터 계층",
+    "task": {
+      "description": "SPEC Data Models의 타입을 런타임 코드 없이 정의한다. 포함 범위: WeekendRule·LocalDate·YearMonth, version: 1을 가진 저장 타입 PaySettings·OutflowStore·Outflow·AppMeta, 파생 타입 DayEvent·DayBalance·MonthSummary·SimResult, SaveResult. navigate state 계약(RouteState)은 src/types/nav.ts에 둔다. 카테고리 유니온과 createdAt·updatedAt 필드는 만들지 않는다.",
+      "acceptance_criteria": [
+        "src/lib/types.ts가 WeekendRule('none'|'prevBusinessDay'|'nextBusinessDay'), LocalDate, YearMonth, PaySettings, OutflowStore, Outflow, AppMeta, DayEvent, DayBalance, MonthSummary, SimResult를 export하고, 필드 이름·타입·옵셔널 여부가 SPEC Data Models와 1:1로 같다. 옵셔널 필드는 Outflow.dayChange 하나뿐이고 createdAt·updatedAt 필드는 0개다.",
+        "SaveResult가 { ok: true } | { ok: false; error: 'quota' | 'unknown' }로 export된다.",
+        "src/types/nav.ts가 SetupRouteState = { mode: 'onboarding' | 'edit'; focus?: 'balance' }, ItemsRouteState = { from?: 'onboarding'; openAdd?: boolean }를 export한다.",
+        "두 파일에는 type/interface export 외의 문(const·function·class·enum)이 0개이고, npx tsc --noEmit이 통과한다."
+      ]
+    },
+    "covers": [],
+    "files": [
+      "src/lib/types.ts",
+      "src/types/nav.ts"
+    ],
+    "definition_of_done": [
+      "npx tsc --noEmit 통과",
+      "두 파일에 런타임 코드 0줄(grep 'const |function |class |enum ' 0건)"
+    ],
+    "depends_on": [],
+    "db_schema": "interface PaySettings { version: 1; salaryAmount: number; salaryDay: number; salaryWeekendRule: WeekendRule; currentBalance: number; balanceAsOf: LocalDate } → localStorage key: 'pcm.settings.v1' | interface OutflowStore { version: 1; items: Outflow[] }, interface Outflow { id: string; name: string; amount: number; day: number; weekendRule: WeekendRule; dayChange?: { fromDay: number; effectiveMonth: YearMonth } } → localStorage key: 'pcm.outflows.v1' | interface AppMeta { version: 1; lastSeenMonth: YearMonth | null } → localStorage key: 'pcm.meta.v1'",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0002",
+    "title": "테스트 환경 + BASE 픽스처 + 전역 셋업",
+    "epic": "Epic 1. 데이터 계층",
+    "task": {
+      "description": "vitest와 jsdom, Testing Library를 설치하고 설정한다. SPEC의 BASE 픽스처(settings와 outflows 4개)를 src/test/fixtures.ts에 둔다. 전역 셋업은 테스트마다 localStorage를 비우고, console.error가 호출되면 테스트를 실패시킨다. 이후 모든 테스트 패킷이 이 픽스처를 import한다.",
+      "acceptance_criteria": [
+        "npx vitest run이 jsdom 환경에서 실행되고 src/test/fixtures.test.ts가 통과한다.",
+        "BASE.settings가 { version: 1, salaryAmount: 2500000, salaryDay: 25, salaryWeekendRule: 'none', currentBalance: 800000, balanceAsOf: '2026-10-11' }와 deep-equal이다.",
+        "BASE.outflows는 아래 4개가 이 순서로 들어 있다. 모두 weekendRule 'none'이고 dayChange 키가 없으며, amount 합계는 1,052,000이다. 통신비·넷플릭스의 id는 SPEC BASE 픽스처 표기를 그대로 쓴다.\n- 월세(id 'o-rent', 550000, 24일)\n- 카드값(id 'o-card', 420000, 14일)\n- 통신비(65000, 21일)\n- 넷플릭스(17000, 18일)",
+        "setup.ts는 각 테스트가 끝나면 localStorage.clear()를 실행한다. 테스트 중 console.error가 1회라도 호출되면 그 테스트가 실패한다(자가 검증 테스트 포함)."
+      ]
+    },
+    "covers": [],
+    "files": [
+      "package.json",
+      "vitest.config.ts",
+      "src/test/setup.ts",
+      "src/test/fixtures.ts",
+      "src/test/fixtures.test.ts"
+    ],
+    "definition_of_done": [
+      "npm install 후 npx vitest run src/test 통과",
+      "npx tsc --noEmit 통과",
+      "npm run build 성공"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [
+      "vitest",
+      "jsdom",
+      "@testing-library/react",
+      "@testing-library/jest-dom",
+      "@testing-library/user-event"
+    ],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0003",
+    "title": "날짜·금액 포맷 유틸 (getToday, localDate, format)",
+    "epic": "Epic 2. 계산 엔진",
+    "task": {
+      "description": "모든 계층이 공유하는 순수 유틸을 만든다.\n- getToday(): 오늘 날짜를 얻는 유일한 함수\n- LocalDate 연산: 생성·파싱·덧셈·말일·요일·검증, YearMonth 연산\n- 표시 포맷 파일 src/lib/format.ts: formatWon, formatSignedWon, formatCompactWon, formatKoreanDate\ntoISOString은 쓰지 않는다. 화면 패킷은 이 파일들을 import만 한다.",
+      "acceptance_criteria": [
+        "formatCompactWon 결과: 9800→'9,800', 380000→'38만', -252000→'-25.2만', 2248000→'224.8만', 123000000→'1.2억', 3300000→'330만'",
+        "formatWon(2500000)→'2,500,000', formatSignedWon(-252000)→'-252,000원', formatSignedWon(550000)→'+550,000원', formatKoreanDate('2026-10-24')→'10월 24일 (토)'",
+        "날짜 연산 결과: weekday('2026-10-24')===6, daysInMonth(2026, 11)===30, addDays('2026-10-31', 1)==='2026-11-01', addMonths('2026-12', 1)==='2027-01', diffDays('2026-10-11', '2026-12-13')===63",
+        "형식 검증 결과: isValidLocalDate('2026-02-30')===false, isValidLocalDate('2026-10-11')===true, isValidYearMonth('2026-13')===false",
+        "세 소스 파일에서 toISOString·crypto.randomUUID·structuredClone·'.at('·Object.hasOwn·Intl.Segmenter가 grep 0건이고, getToday는 new Date()의 로컬 연·월·일로 'YYYY-MM-DD'를 만든다."
+      ]
+    },
+    "covers": [
+      "F4-AC-2",
+      "F7-AC-7"
+    ],
+    "files": [
+      "src/lib/date/getToday.ts",
+      "src/lib/date/localDate.ts",
+      "src/lib/format.ts",
+      "src/lib/date/localDate.test.ts",
+      "src/lib/format.test.ts"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/lib/date src/lib/format.test.ts 통과",
+      "npx tsc --noEmit 통과"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0004",
+    "title": "저장소 어댑터 + save 계열 + probeStorage + id 생성",
+    "epic": "Epic 1. 데이터 계층",
+    "task": {
+      "description": "localStorage 접근을 src/lib/store/storage.ts 어댑터 하나에 모은다. 어댑터는 readRaw·writeRaw·removeKey·probeStorage를 제공하며 템플릿 localStorage helper를 거친다. 예외는 quota와 unknown으로 분류한다. keys.ts에는 키 3개를 둔다. save.ts의 saveSettings·saveOutflows·saveMeta는 타입에 정의된 필드만 직렬화하고, 검증은 하지 않는다. newId도 여기서 만든다.",
+      "acceptance_criteria": [
+        "(F1-AC-7) setItem이 QuotaExceededError를 던지면 saveOutflows가 { ok: false, error: 'quota' }를 돌려주고, 기존 pcm.outflows.v1 문자열은 그대로다. 예외 name이 'NS_ERROR_DOM_QUOTA_REACHED'이거나 code가 22인 경우도 'quota'로 분류한다.",
+        "(F1-AC-9) setItem이 new DOMException('denied', 'SecurityError')나 new Error('x')를 던지면 세 save 모두 예외 없이 { ok: false, error: 'unknown' }을 돌려주고, 기존 세 키는 바뀌지 않는다.",
+        "(F1-AC-10 일부) window.localStorage getter나 getItem이 예외를 던지면 probeStorage()가 false를 돌려주고, 예외를 밖으로 던지지 않는다.",
+        "saveOutflows(BASE.outflows)가 { ok: true }를 돌려주고 저장 문자열이 { version: 1, items: [...] }이다. dayChange가 없는 항목의 문자열에는 'dayChange'가 0건이고, 정의되지 않은 추가 필드는 직렬화하지 않는다.",
+        "newId()가 /^[0-9a-z]{1,32}$/에 맞고, 1000회 호출해도 중복이 0개다. crypto.randomUUID는 쓰지 않는다."
+      ]
+    },
+    "covers": [
+      "F1-AC-7",
+      "F1-AC-9",
+      "F1-AC-10"
+    ],
+    "files": [
+      "src/lib/store/storage.ts",
+      "src/lib/store/keys.ts",
+      "src/lib/store/id.ts",
+      "src/lib/store/save.ts",
+      "src/lib/store/save.test.ts"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/lib/store/save.test.ts 통과",
+      "npx tsc --noEmit 통과",
+      "window.localStorage 직접 접근은 storage.ts 1개 파일에만 존재"
+    ],
+    "depends_on": [
+      "0002"
+    ],
+    "db_schema": "keys: 'pcm.settings.v1' (PaySettings), 'pcm.outflows.v1' ({ version: 1, items: Outflow[] }), 'pcm.meta.v1' (AppMeta)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0005",
+    "title": "읽을 때 검증기 + load 계열 (손상 복구·버전 불일치·30개 상한)",
+    "epic": "Epic 1. 데이터 계층",
+    "task": {
+      "description": "validate.ts에는 저장소에 접근하지 않는 순수 검증·정규화 함수를 둔다. 검증 대상은 일반 객체·정수 범위·LocalDate·YearMonth·id 중복·version===1이다. load.ts의 loadSettings·loadOutflows·loadMeta는 SPEC 키별 검증 표대로 동작하고, 저장소는 0004 어댑터로만 다룬다.\n- 손상되면 키를 삭제한다. 메타는 삭제하지 않는다.\n- 실패한 항목만 걸러 낸다.\n- 30개를 넘으면 앞 30개만 남기고 다시 저장한다.",
+      "acceptance_criteria": [
+        "(F1-AC-4) 빈 저장소에서 saveSettings(BASE.settings)와 saveOutflows(BASE.outflows)를 한 뒤 load하면 settings가 BASE.settings(키 6개)와 deep-equal이고, items가 BASE.outflows와 같은 순서로 deep-equal이며 dayChange 키가 없다.",
+        "(F1-AC-6, F1-AC-11) pcm.settings.v1이 아래 중 하나면 loadSettings()가 예외 없이 { settings: null, recovered: true }를 돌려주고 키를 삭제한다. 키가 없으면 { settings: null, recovered: false }다.\n- '{bad'\n- '{\"version\":1,\"salaryDay\":\"x\"}'\n- version 2·누락·'1'\n- salaryAmount 0",
+        "(F1-AC-6, F1-AC-12) pcm.outflows.v1이 아래 중 하나면 { items: [], recovered: true }를 돌려주고 키를 삭제한다.\n- '[]'\n- '{bad'\n- { version: 2, items: BASE.outflows }\n- { version: 1, items: {} }\n넷플릭스만 amount -5인 경우에는 나머지 3개를 돌려주고 { version: 1, items: 3개 }로 다시 저장하며 recovered: true다. 유효 항목이 31개면 앞 30개만 남긴다.",
+        "(F1-AC-10) 저장소 접근이 막히면 loadSettings→{ settings: null, recovered: false }, loadOutflows→{ items: [], recovered: false }, loadMeta→null을 돌려준다. removeItem·setItem 호출은 0회다.",
+        "(F7-AC-6) pcm.meta.v1이 없거나 '{bad'이거나 '{\"version\":2,\"lastSeenMonth\":\"2026-10\"}'이면 loadMeta()가 null을 돌려주고 키를 삭제하지 않는다. 추가 필드(updatedAt·createdAt)만 있는 정상 값은 recovered: false이고 다시 쓰지 않는다."
+      ]
+    },
+    "covers": [
+      "F1-AC-4",
+      "F1-AC-6",
+      "F1-AC-10",
+      "F1-AC-11",
+      "F1-AC-12",
+      "F7-AC-6"
+    ],
+    "files": [
+      "src/lib/store/validate.ts",
+      "src/lib/store/validate.test.ts",
+      "src/lib/store/load.ts",
+      "src/lib/store/load.test.ts"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/lib/store 통과",
+      "npx tsc --noEmit 통과",
+      "load·validate 경로에서 console.error 호출 0회"
+    ],
+    "depends_on": [
+      "0002",
+      "0003",
+      "0004"
+    ],
+    "db_schema": "읽기 대상: 'pcm.settings.v1' → { settings: PaySettings | null; recovered: boolean }, 'pcm.outflows.v1' → { items: Outflow[]; recovered: boolean }, 'pcm.meta.v1' → AppMeta | null",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0006",
+    "title": "잔고 계산 엔진 코어 (날짜 보정·월 이벤트·투영·월 요약)",
+    "epic": "Epic 2. 계산 엔진",
+    "task": {
+      "description": "src/lib/balance/에 순수 함수 4개를 만든다.\n- resolveActualDate: 말일 보정 후 주말 보정\n- buildMonthEvents: 그달의 이벤트 전체. 출금 먼저, 출금끼리는 배열 순서\n- buildProjection: (asOf, endDate] 구간의 잔고. 같은 날은 출금 먼저 반영하고 dayChange를 적용한다\n- summarizeMonth: lowest·crunch·firstNegativeDate",
+      "acceptance_criteria": [
+        "(F1-AC-1) BASE, endDate '2026-11-30' 기준 endBalance가 10-14 380,000 / 10-18 363,000 / 10-21 298,000 / 10-24 -252,000 / 10-25 2,248,000 / 11-24 1,196,000 / 11-25 3,696,000이다. summarizeMonth(days, '2026-10', '2026-10-11')의 lowest는 { date: '2026-10-24', balance: -252000 }, firstNegativeDate는 '2026-10-24'다.",
+        "(F1-AC-2) resolveActualDate 결과가 다음과 같다: (2026, 10, 25, 'prevBusinessDay')→'2026-10-23', (2026, 10, 24, 'nextBusinessDay')→'2026-10-26', (2026, 11, 31, 'none')→'2026-11-30'",
+        "(F1-AC-3) currentBalance 100000과 적금이체(o-save, 300000, 25일)로 계산하면 10-25가 lowBalance -200000, endBalance 2300000이다. lowest는 { date: '2026-10-25', balance: -200000 }, crunch는 { start: '2026-10-25', end: '2026-10-25', days: 1 }이다.",
+        "(F1-AC-8) outflows가 []이면 lowest는 { date: '2026-10-11', balance: 800000 }, crunch는 { start: '2026-10-11', end: '2026-10-24', days: 14 }, firstNegativeDate는 null이다. 10-25 endBalance는 3,300,000이고 예외가 없다.",
+        "(F4-AC-10 기반) buildMonthEvents(BASE, '2026-10')는 카드값 10-14 → 넷플릭스 10-18 → 통신비 10-21 → 월세 10-24 → 월급 10-25 순서로 5개다. 관리비(o-mgmt, 100000, 5일)를 추가하면 10-05 관리비가 첫 이벤트가 되지만, buildProjection의 10-14 endBalance는 380,000으로 그대로다."
+      ]
+    },
+    "covers": [
+      "F1-AC-1",
+      "F1-AC-2",
+      "F1-AC-3",
+      "F1-AC-8",
+      "F4-AC-10"
+    ],
+    "files": [
+      "src/lib/balance/resolveActualDate.ts",
+      "src/lib/balance/events.ts",
+      "src/lib/balance/projection.ts",
+      "src/lib/balance/summary.ts",
+      "src/lib/balance/projection.test.ts"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/lib/balance/projection.test.ts 통과",
+      "npx tsc --noEmit 통과",
+      "네 모듈 모두 localStorage·React import 0건(순수 함수)"
+    ],
+    "depends_on": [
+      "0002",
+      "0003"
+    ],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0007",
+    "title": "출금일 변경 적용 시점 (applyDayChange, applyDayChangeToItem)",
+    "epic": "Epic 2. 계산 엔진",
+    "task": {
+      "description": "src/lib/balance/dayChange.ts에 두 함수를 만든다.\n- applyDayChange: SPEC 규칙대로 이번 달 기준 curDay를 정한다. 이미 지난 날짜면 다음 달부터 적용하는 dayChange를 만든다.\n- applyDayChangeToItem: 저장용 Outflow를 필드별로 새로 만든다. dayChange가 없으면 키 자체를 넣지 않는다. {...item, ...result} 병합은 금지다.",
+      "acceptance_criteria": [
+        "(F1-AC-5) today '2026-10-11'에서 applyDayChange({ name: '카드값', day: 10 }, 26, today)는 { day: 26, dayChange: { fromDay: 10, effectiveMonth: '2026-11' } }를 돌려준다.",
+        "(F1-AC-5) applyDayChange({ name: '월세', day: 24 }, 5, today)는 { day: 5, dayChange: { fromDay: 24, effectiveMonth: '2026-11' } }를 돌려준다. applyDayChange({ name: '월세', day: 24 }, 26, today)는 { day: 26 }이고 'dayChange' in r === false다.",
+        "(F1-AC-13) 카드값 { id: 'o-card', amount: 420000, day: 26, weekendRule: 'none', dayChange: { fromDay: 10, effectiveMonth: '2026-11' } }에 대해 두 호출 결과가 모두 키 5개(id·name·amount·weekendRule·day)이고 dayChange 키가 없다.\n- applyDayChangeToItem(카드값, 27, '2026-11-02') → day 27\n- applyDayChangeToItem(카드값, 10, '2026-10-11') → day 10",
+        "effectiveMonth가 이번 달보다 뒤인 dayChange가 있는 항목에서 newDay가 day와 같으면, 기존 dayChange를 그대로 유지한 객체를 돌려준다(F3-AC-12에서 금액만 수정하는 경우)."
+      ]
+    },
+    "covers": [
+      "F1-AC-5",
+      "F1-AC-13",
+      "F3-AC-12"
+    ],
+    "files": [
+      "src/lib/balance/dayChange.ts",
+      "src/lib/balance/dayChange.test.ts"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/lib/balance/dayChange.test.ts 통과",
+      "npx tsc --noEmit 통과",
+      "dayChange.ts에 스프레드 병합 '...result' 0건"
+    ],
+    "depends_on": [
+      "0006"
+    ],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0008",
+    "title": "출금일 이동 시뮬레이션 + 홈 화면 모델 selector",
+    "epic": "Epic 2. 계산 엔진",
+    "task": {
+      "description": "두 순수 함수 모듈을 만든다.\n- simulate.ts: simulateShift(settings, outflows, itemId, toDay, today)와 bestShifts(settings, outflows, today)로 SimResult[]를 만든다. 순서는 outflows 배열 순서이고, 동률이면 원래 날짜와의 차가 가장 작은 날을 고른다.\n- homeModel.ts: buildHomeModel({ settings, outflows, today, month })가 cells·leadingBlanks·rows·summary·sparkline·balanceHidden·isStale을 한 번에 계산한다. UI는 계산 없이 그리기만 한다.",
+      "acceptance_criteria": [
+        "(F6-AC-3) bestShifts(BASE, '2026-10-11')의 월세 결과는 { itemId: 'o-rent', fromDay: 24, toDay: 26, baseMin: -252000, newMin: 298000, delta: 550000, improved: true }, 카드값 결과는 { itemId: 'o-card', toDay: 26, newMin: 168000, delta: 420000 }이다. 25일 후보는 newMin이 -252000이라 선택되지 않는다.",
+        "(F6-AC-4, F6-AC-10) simulateShift(…, 'o-rent', 5, '2026-10-11')는 { baseMin: -252000, newMin: -252000, delta: 0, improved: false }(10월은 10-24 유지, 11월은 11-05)다. toDay 31이면 10-31·11-30에 반영되고 { newMin: 298000, delta: 550000, improved: true }다. (F6-AC-6) 월세가 day 26 한 항목뿐이면 { toDay: 26, delta: 0, improved: false }다.",
+        "(F4-AC-3) buildHomeModel(BASE, '2026-10-11', '2026-10')의 rows는 5개이고 첫 두 행이 'label 10월 14일 (수) 카드값 / sub -420,000원 · 잔고 380,000원', '10월 18일 (일) 넷플릭스 / -17,000원 · 잔고 363,000원'이다. 관리비(5일)를 추가하면 6행이 되고 첫 행 sub가 '-100,000원 · 지남'이다.",
+        "(F4-AC-2, F4-AC-7, F7-AC-2) 10월 모델은 leadingBlanks 4, cells 31개다. 10-10 셀은 showBalance false, 10-11 셀은 true(800000)다. 11월 모델은 leadingBlanks 0, cells 30개, 11-24 endBalance 1196000이다. today '2026-11-02'이면 11-02 셀이 2248000이고 11-01 셀은 showBalance false다.",
+        "(F7-AC-5, F5-AC-2, F5-AC-4) 다음을 만족한다.\n- today '2026-12-13'이면 balanceHidden true이고 showBalance가 true인 셀이 0개다. '2026-12-12'이면 balanceHidden false다.\n- salaryWeekendRule 'prevBusinessDay'와 월세 'nextBusinessDay' 변형에서는 10-21·10-22 셀이 inCrunch, 10-21 셀이 isLowest다.\n- BASE 10월 sparkline 점은 21개이고, 최저점 인덱스는 10-24 위치(13)다."
+      ]
+    },
+    "covers": [
+      "F6-AC-3",
+      "F6-AC-4",
+      "F6-AC-6",
+      "F6-AC-10",
+      "F4-AC-2",
+      "F4-AC-3",
+      "F4-AC-7",
+      "F7-AC-2",
+      "F7-AC-5",
+      "F5-AC-2",
+      "F5-AC-4"
+    ],
+    "files": [
+      "src/lib/balance/simulate.ts",
+      "src/lib/balance/simulate.test.ts",
+      "src/lib/balance/homeModel.ts",
+      "src/lib/balance/homeModel.test.ts"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/lib/balance 통과",
+      "npx tsc --noEmit 통과"
+    ],
+    "depends_on": [
+      "0002",
+      "0006"
+    ],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0009",
+    "title": "앱 데이터 상태 Context (AppDataProvider + 액션)",
+    "epic": "Epic 1. 데이터 계층",
+    "task": {
+      "description": "src/state/AppDataContext.tsx에 AppDataProvider와 useAppData()를 만든다.\n- 마운트 시 load 3종을 1회 호출한다.\n- 노출 값: settings, outflows, meta, settingsRecovered, outflowsRecovered\n- 액션: saveSettings, addOutflow(끝에 추가), updateOutflow(같은 인덱스, applyDayChangeToItem 사용), removeOutflow, setOutflowDay, saveMeta\n- 액션은 SaveResult를 돌려주고, 실패하면 상태를 바꾸지 않는다. Toast는 UI가 띄운다.",
+      "acceptance_criteria": [
+        "(F3-AC-1 기반) addOutflow({ name: '월세', amount: 550000, day: 24, weekendRule: 'none' })는 { ok: true }를 돌려주고 outflows 끝에 새 id 항목을 추가한다. 저장 값은 { version: 1, items: [...] }이다.",
+        "(F3-AC-8, F3-AC-10) saveOutflows가 { ok: false, error: 'quota' | 'unknown' }을 돌려주면 add·update·remove 모두 그 결과를 그대로 돌려주고, 컨텍스트 outflows 배열이 실행 전과 같은 참조로 남는다.",
+        "updateOutflow('o-rent', { name: '월세(관리비 포함)', amount: 600000 }, 26, '2026-10-11') 후 items[0]이 { id: 'o-rent', name: '월세(관리비 포함)', amount: 600000, day: 26, weekendRule: 'none' }이다. 나머지 3개의 순서는 그대로다.",
+        "(F2-AC-5, F2-AC-11) saveSettings가 실패하면 컨텍스트 settings가 바뀌지 않는다. 성공하면 새 settings로 다시 렌더된다.",
+        "(F4-AC-9 기반) loadOutflows가 recovered: true를 돌려주면 outflowsRecovered가 true이고 outflows는 걸러 낸 결과다. saveMeta가 실패해도 예외와 console.error가 0회다."
+      ]
+    },
+    "covers": [
+      "F2-AC-5",
+      "F2-AC-11",
+      "F3-AC-8",
+      "F3-AC-10",
+      "F4-AC-9"
+    ],
+    "files": [
+      "src/state/AppDataContext.tsx",
+      "src/state/AppDataContext.test.tsx"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/state 통과",
+      "npx tsc --noEmit 통과"
+    ],
+    "depends_on": [
+      "0005",
+      "0007"
+    ],
+    "db_schema": "읽기/쓰기: 'pcm.settings.v1', 'pcm.outflows.v1', 'pcm.meta.v1' (0004 save / 0005 load 경유)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  },
+  {
+    "id": "0010",
+    "title": "숫자 입력 필드 NumericField (공용 컴포넌트)",
+    "epic": "Epic 3. UI 화면",
+    "task": {
+      "description": "TDS TextField를 감싼 NumericField를 만든다.\n- inputMode='numeric'이고 숫자가 아닌 문자는 무시한다. 무시할 때 안내 문구는 없다.\n- 표시값에는 콤마를 넣고, onChange에는 숫자 문자열만 넘긴다.\n- 포커스 시 scrollIntoView({ block: 'center' })로 키보드에 가리지 않게 한다.\n- error·onBlur·onEnter prop을 지원한다.\n설정 화면, 출금 시트, 시뮬레이션 시트에서 함께 쓴다.",
+      "acceptance_criteria": [
+        "(F2-AC-7) 렌더된 input의 inputMode는 'numeric'이다. '2500000'을 타이핑하면 화면 값이 '2,500,000'이고 마지막 onChange 인자는 '2500000'이다.",
+        "(F2-AC-9 일부) 'abc'를 타이핑하면 값이 ''로 남고 onChange 호출은 0회다. 오류 문구도 표시하지 않는다.",
+        "포커스 시 input.scrollIntoView가 { block: 'center' }로 1회 호출된다.",
+        "error prop에 문자열을 넘기면 TDS TextField의 오류 상태로 해당 문구가 필드 아래에 표시된다. Enter 키는 disabled prop이 false일 때만 onEnter를 호출한다."
+      ]
+    },
+    "covers": [
+      "F2-AC-7",
+      "F2-AC-9"
+    ],
+    "files": [
+      "src/components/form/NumericField.tsx",
+      "src/components/form/NumericField.test.tsx"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/components/form 통과",
+      "npx tsc --noEmit 통과",
+      "인라인 padding/margin 스타일 0건"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "TDS TextField 1개만 감싼다(variant는 TDS 기본). label에 단위를 넣는다(사전에 suffix prop이 없음). 예: '월급 실수령액 (원)', '월급일 (일)'. 오류는 TextField error 상태와 help text로 표시한다. 여백 조정 스타일은 0개이고 터치 영역은 TDS 기본 높이(≥44px)다. 색상은 TDS 내장만 쓰고 HEX는 금지한다."
+  },
+  {
+    "id": "0011",
+    "title": "월급·잔고 설정 페이지 (/setup) + 폼 훅",
+    "epic": "Epic 3. UI 화면",
+    "task": {
+      "description": "src/pages/Setup.tsx와 src/pages/setup/useSetupForm.ts를 만든다. 이 화면은 핵심 여정의 진입 화면이며 onboarding과 edit 모드를 함께 쓴다.\n- 입력: 월급 실수령액·월급일·현재 잔고(NumericField), 주말 규칙(Chip 3개)\n- 검증: 빈 값이면 disabled와 blur 문구, 범위 오류는 제출 시 문구\n- 저장: 잔고를 바꾼 경우에만 balanceAsOf를 오늘로 갱신한다.\n- 이동: onboarding이면 /items, edit이면 Toast 후 홈으로 replace 이동한다.",
+      "acceptance_criteria": [
+        "(F2-AC-1, F2-AC-6) onboarding에서는 처음에 세 필드가 비어 있고, Chip은 '그대로'가 선택되어 있으며, '다음' 버튼은 disabled다. '2500000', '25', '800000'을 입력하고 '다음'을 탭하면 pcm.settings.v1이 BASE.settings와 deep-equal이 된다(today '2026-10-11'). 이어서 logClick('setup_save') 1회와 navigate('/items', { state: { from: 'onboarding' } })가 호출된다.",
+        "(F2-AC-2) edit 모드, today '2026-10-20'에서 월급만 2700000으로 바꾸면 balanceAsOf가 '2026-10-11'로 유지된다. 이때 Toast '저장했어요'를 띄우고 navigate('/', { replace: true })로 이동한다. 잔고를 1,000,000으로 바꾸면 balanceAsOf가 '2026-10-20'이 된다.",
+        "(F2-AC-3, F2-AC-4, F2-AC-9) 범위를 벗어난 값으로 저장을 탭하면 아래 문구를 표시하고 localStorage 쓰기는 0회다. 잔고 '0'은 currentBalance 0으로 저장된다.\n- 월급일 '32'·'0': '1~31 사이 날짜를 입력해주세요'\n- 월급 '0': '0원보다 큰 금액을 입력해주세요'\n- 월급 '1000000001': '10억 원 이하로 입력해주세요'\n- 잔고 '10000000000': '잔고는 9,999,999,999원 이하로 입력해주세요'",
+        "(F2-AC-10) edit 모드에서 필드를 비우고 blur하면 아래 문구가 표시되고 '저장' 버튼이 disabled다. 이때 잔고 필드에서 Enter를 눌러도 쓰기는 0회다.\n- 월급: '월급 실수령액을 입력해주세요'\n- 월급일: '월급일을 입력해주세요'\n- 잔고: '지금 잔고를 입력해주세요'",
+        "(F2-AC-5, F2-AC-11, F2-AC-8, F2-AC-12) 다음을 만족한다.\n- 저장 실패(quota·unknown) 시 Toast '저장하지 못했어요. 다시 시도해주세요'를 띄운다. navigate는 0회이고 입력값 4개가 유지된다.\n- { mode: 'edit', focus: 'balance' }이면 잔고 필드가 document.activeElement이고 '잔고 기준일: 10월 11일'이 보인다.\n- visibilitychange(hidden→visible) 뒤에도 미저장 입력이 유지된다. 재마운트하면 빈 값이고 Toast는 없다."
+      ]
+    },
+    "covers": [
+      "F2-AC-1",
+      "F2-AC-2",
+      "F2-AC-3",
+      "F2-AC-4",
+      "F2-AC-5",
+      "F2-AC-6",
+      "F2-AC-7",
+      "F2-AC-8",
+      "F2-AC-9",
+      "F2-AC-10",
+      "F2-AC-11",
+      "F2-AC-12"
+    ],
+    "files": [
+      "src/pages/Setup.tsx",
+      "src/pages/setup/useSetupForm.ts",
+      "src/pages/Setup.test.tsx"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/pages/Setup.test.tsx 통과",
+      "npx tsc --noEmit 통과",
+      "HEX 색상·인라인 여백 0건"
+    ],
+    "depends_on": [
+      "0010"
+    ],
+    "db_schema": "쓰기: 'pcm.settings.v1' ← PaySettings (useAppData().saveSettings 경유)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: Form (S2 월급·잔고 설정). 구성: PageShell > ScreenScaffold\n- Top title(Top.TitleParagraph): onboarding '월급과 잔고를 알려주세요', edit '월급·잔고'\n- Spacing size={16}\n- NumericField label '월급 실수령액 (원)'\n- Spacing size={12}\n- NumericField label '월급일 (일)'\n- Spacing size={12}\n- Paragraph.Text typography='t6' '주말이면'\n- Chip 그룹 + ChipItem 3개 '그대로'(none) / '직전 평일'(prevBusinessDay) / '다음 평일'(nextBusinessDay). 탭할 때 generateHapticFeedback({ type: 'tickWeak' })\n- Spacing size={12}\n- NumericField label '지금 통장 잔고 (원)'\n- edit 모드만: Paragraph.Text typography='t7' color='var(--adaptiveGrey600)' '잔고 기준일: {M}월 {D}일'\n- 하단: 템플릿 SubmitFooter. 버튼 라벨은 onboarding '다음', edit '저장'. 비어 있는 필드가 있으면 disabled. 성공 시 generateHapticFeedback({ type: 'success' })\n\nStates: 로딩 없음(동기 load). 오류는 각 TextField의 error 문구와 Toast로만 표시한다. 토스 보이스: 해요체, '~시' 금지."
+  },
+  {
+    "id": "0012",
+    "title": "출금 항목 BottomSheet (추가·수정 공용 OutflowSheet)",
+    "epic": "Epic 3. UI 화면",
+    "task": {
+      "description": "src/components/items/OutflowSheet.tsx를 만든다. TDS BottomSheet 안에 이름 TextField(maxLength 20), 금액·매월 출금일 NumericField, 주말 ChipItem 3개를 둔다.\n- add 모드 버튼: '추가하기'. edit 모드 버튼: '저장하기'와 '삭제'\n- 이름 프리셋(initialName)을 받으면 이름 칸을 채워서 연다.\n- 검증을 통과하면 onSubmit({ name: trim, amount, day, weekendRule })을 호출한다. 저장은 하지 않는다.",
+      "acceptance_criteria": [
+        "(F3-AC-5) 아래 각 입력으로 제출하면 SPEC F3-AC-5 문구를 해당 필드 아래에 표시하고 onSubmit은 0회 호출된다. 이름 input의 maxLength는 20이다.\n- 이름 '   '\n- 금액 '0'('0원보다 큰 금액을 입력해주세요')\n- 금액 '100000001'(이하 범위 문구)\n- 날짜 '32'('1~31 사이 날짜를 입력해주세요')",
+        "(F3-AC-9) 이름이 '월세'이고 금액이나 날짜가 비어 있으면 '추가하기'가 disabled이고 onSubmit은 0회다. 금액을 비운 채 blur하면 '금액을 입력해주세요'가 보인다. 이름 '   '은 빈 값이 아니므로 버튼은 활성이다.",
+        "(F3-AC-4 일부) initialName '카드값'으로 열면 이름 칸은 '카드값'이고 금액·날짜는 비어 있다.",
+        "edit 모드에서 initial { name: '카드값', amount: 420000, day: 26 }으로 열면 세 필드가 채워져 있다(day 필드에는 day 값). '삭제'를 탭하면 onDelete가 1회 호출된다.",
+        "부모가 open을 유지한 채 다시 렌더해도 입력값이 유지된다(F3-AC-11의 백그라운드 복귀 대비)."
+      ]
+    },
+    "covers": [
+      "F3-AC-4",
+      "F3-AC-5",
+      "F3-AC-9",
+      "F3-AC-11"
+    ],
+    "files": [
+      "src/components/items/OutflowSheet.tsx",
+      "src/components/items/OutflowSheet.test.tsx"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/components/items 통과",
+      "npx tsc --noEmit 통과"
+    ],
+    "depends_on": [
+      "0010"
+    ],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: BottomSheet Form (S3-a 항목 추가·수정). 구성:\n- BottomSheet 제목: add '출금 추가', edit '출금 수정'\n- TextField label '이름' maxLength={20}\n- Spacing size={12}\n- NumericField label '금액 (원)'\n- Spacing size={12}\n- NumericField label '매월 출금일 (일)'\n- Spacing size={12}\n- Paragraph.Text typography='t6' '주말이면'\n- Chip + ChipItem '그대로' / '직전 평일' / '다음 평일'. 탭할 때 tickWeak 햅틱\n- Spacing size={24}\n- Button variant='fill' size='large'(전체폭) '추가하기'/'저장하기'. 성공 시 success 햅틱\n- edit 모드만: Spacing size={8} 뒤 Button variant='weak' size='large' '삭제'\n\n여백은 Spacing만 쓰고 HEX는 금지한다. 하단 고정 요소는 paddingBottom calc(Npx + env(safe-area-inset-bottom))를 쓴다."
+  },
+  {
+    "id": "0013",
+    "title": "출금 항목 페이지 (/items) + 목록",
+    "epic": "Epic 3. UI 화면",
+    "task": {
+      "description": "src/pages/Items.tsx와 OutflowList.tsx를 만든다. 이 화면은 핵심 입력 단계다.\n- 표시: 합계 요약(MiniBar), day 오름차순 ListRow(같은 날이면 등록 순), 빈 상태와 프리셋 ChipItem 5개\n- 동작: 추가·수정·삭제(AlertDialog), 30개 상한, openAdd state 처리 후 비우기\n- 저장 실패 Toast. 시트는 열린 채 입력값을 유지한다.",
+      "acceptance_criteria": [
+        "(F3-AC-1) '출금 추가'를 탭하고 '  월세  ', 550000, 24를 넣어 '추가하기'를 탭하면 저장 items 끝에 { id, name: '월세', amount: 550000, day: 24, weekendRule: 'none' }(키 5개)가 추가된다. 시트가 닫히고 Toast '추가했어요'가 뜨며 logClick('outflow_add_submit')가 1회 호출된다.",
+        "(F3-AC-2, F3-AC-12) 다음을 만족한다.\n- '월세' 행을 탭해 '월세(관리비 포함)', 600000, 26으로 저장하면 items[0]이 { id: 'o-rent', name: '월세(관리비 포함)', amount: 600000, day: 26, weekendRule: 'none' }이 되고 Toast '저장했어요'가 뜬다.\n- 대기 중인 dayChange가 있는 카드값은 금액만 바꾸면 dayChange가 유지된다. 날짜를 10으로 바꾸면 저장 문자열에 'dayChange'가 0건이다.",
+        "(F3-AC-3) '넷플릭스' 시트에서 '삭제'를 탭하면 AlertDialog '\\'넷플릭스\\' 항목을 삭제할까요?'가 뜬다. '삭제'를 누르면 items가 [월세, 카드값, 통신비]가 되고 Toast '삭제했어요'가 뜬다. 왼쪽 버튼 '닫기'를 누르면 4개가 유지된다(토스 규칙에 따라 '취소' 대신 '닫기').",
+        "(F3-AC-4, F3-AC-6, F3-AC-7) 다음을 만족한다.\n- 0개면 Asset.ContentIcon, '아직 등록한 출금이 없어요', ChipItem 5개가 보인다.\n- 30개면 '출금 추가'를 탭해도 시트가 열리지 않고 Toast '출금 항목은 30개까지 등록할 수 있어요'가 뜬다.\n- BASE에서는 목록이 카드값→넷플릭스→통신비→월세 순이고 쓰기는 0회다. outflow-total은 '매월 출금 합계 1,052,000원 · 월급의 42%'다.",
+        "(F3-AC-8, F3-AC-10, F3-AC-11) 다음을 만족한다.\n- 저장 실패(quota·unknown) 시 Toast '저장하지 못했어요. 다시 시도해주세요'가 뜨고 목록은 그대로이며, 시트는 열린 채 입력값을 유지한다. 성공 Toast는 0회다.\n- state { openAdd: true }로 진입하면 시트를 연 직후 navigate('.', { replace: true, state: { ...state, openAdd: false } })를 호출한다. 재마운트하면 시트가 닫혀 있다."
+      ]
+    },
+    "covers": [
+      "F3-AC-1",
+      "F3-AC-2",
+      "F3-AC-3",
+      "F3-AC-4",
+      "F3-AC-6",
+      "F3-AC-7",
+      "F3-AC-8",
+      "F3-AC-10",
+      "F3-AC-11",
+      "F3-AC-12"
+    ],
+    "files": [
+      "src/pages/Items.tsx",
+      "src/components/items/OutflowList.tsx",
+      "src/pages/Items.test.tsx"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/pages/Items.test.tsx 통과",
+      "npx tsc --noEmit 통과"
+    ],
+    "depends_on": [
+      "0012"
+    ],
+    "db_schema": "쓰기: 'pcm.outflows.v1' ← { version: 1, items: Outflow[] } (useAppData() 액션 경유)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: List + Summary (S3 출금 항목). 구성: PageShell > ScreenScaffold\n- Top title '출금 항목'\n- Spacing size={16}\n- 요약(data-testid='outflow-total'): Paragraph.Text typography='t5' '매월 출금 합계 {합계}원 · 월급의 {N}%' + Spacing size={8} + 템플릿 MiniBar(value=N%)\n- Spacing size={16}\n- 항목이 있으면: OutflowList = ListRow 반복. contents는 ListRow.Texts type='2RowTypeA', top '{name}', bottom '매월 {day}일 · -{amount}원'. 탭하면 수정 시트\n- 항목이 0개면: Asset.ContentIcon + Paragraph.Text '아직 등록한 출금이 없어요' + Spacing + Chip 그룹(ChipItem '월세','카드값','통신비','보험료','구독료'. tickWeak 햅틱, 탭하면 해당 이름으로 시트 열기)\n- Spacing size={24}\n- Button variant='fill' size='large' 전체폭 '출금 추가'\n\n삭제 확인은 AlertDialog로, 제목 '\\'{name}\\' 항목을 삭제할까요?', 버튼 '닫기'/'삭제'. 두 버튼 배치는 TDS AlertDialog .d.ts를 확인해서 정한다. 하단 탭은 App(0019)의 FloatingTabBar가 렌더하므로 이 페이지에서는 렌더하지 않는다. HEX 금지."
+  },
+  {
+    "id": "0014",
+    "title": "잔고 달력 그리드 + 날짜 상세 시트",
+    "epic": "Epic 3. UI 화면",
+    "task": {
+      "description": "CalendarGrid({ model, onDayClick })와 DayDetailSheet를 만든다.\n- 그리드: 머리줄 7칸 + 앞쪽 빈칸 + 날짜 칸(최소 높이 48px). 칸에는 항목 이름 1개와 +N, formatCompactWon 잔고를 표시한다. 음수는 Red500, 지난 날은 Grey400, 크런치 칸은 Red50 배경이다. data-crunch·data-lowest 속성을 붙인다. 7열 grid CSS만 커스텀으로 쓴다.\n- 상세 시트: 그날 이벤트, 마감 잔고, 출금 후 최저를 보여 준다.",
+      "acceptance_criteria": [
+        "(F4-AC-1) BASE, today '2026-10-11'에서 day-cell-2026-10-24에 '월세'와 '-25.2만'이 있고, 금액 요소 color가 'var(--adaptiveRed500)'이다.",
+        "(F4-AC-2) calendar-grid는 Card 안에 있고 머리줄이 '일 월 화 수 목 금 토'다. 앞쪽 빈칸이 4개, 날짜 칸이 31개다. 10-01~10-10 칸은 Grey400이고 잔고가 없다. 10-11은 '80만', 10-14는 '38만', 10-25는 '224.8만'이다.",
+        "(F4-AC-4) 아래 칸을 탭하면 시트에 해당 내용이 보인다.\n- 10-24: 제목 '10월 24일 (토)', '월세 -550,000원', '하루 마감 잔고 -252,000원'\n- 10-12: '이날은 출금·입금이 없어요', '하루 마감 잔고 800,000원'\n- F1-AC-3 픽스처의 10-25: '출금 후 최저 -200,000원'",
+        "(F4-AC-10) 관리비(5일)가 추가된 모델에서 day-cell-2026-10-05에 '관리비'가 Grey400으로 보이고 잔고 숫자는 없다.",
+        "(F5-AC-2) 변형 설정(월급 prevBusinessDay, 월세 nextBusinessDay)에서 10-21·10-22 칸에 data-crunch='true', 10-21 칸에 data-lowest='true'가 붙는다."
+      ]
+    },
+    "covers": [
+      "F4-AC-1",
+      "F4-AC-2",
+      "F4-AC-4",
+      "F4-AC-10",
+      "F5-AC-2"
+    ],
+    "files": [
+      "src/components/home/CalendarGrid.tsx",
+      "src/components/home/CalendarGrid.css",
+      "src/components/home/DayDetailSheet.tsx",
+      "src/components/home/CalendarGrid.test.tsx"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/components/home/CalendarGrid.test.tsx 통과",
+      "npx tsc --noEmit 통과",
+      "CalendarGrid.css에 HEX 0건, grid/flex 배치 외 속성 0건"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "블루프린트 S1 발췌:\n<Card><div data-testid='calendar-grid' style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>\n  {/* 요일 머리줄 7칸 + 앞쪽 빈칸 + 날짜 칸: minHeight 48, data-crunch, data-lowest, onClick=openDaySheet */}\n  {/* 칸 안: 날짜(t7) / 항목 이름 1개(st13, 말줄임) + '+N' / formatCompactWon(st13, 음수면 Red500, 지난 날은 Grey400) */}\n</div></Card>\n\n색상: var(--adaptiveRed500)는 마이너스 잔고, var(--adaptiveRed50)는 크런치 칸 배경, var(--adaptiveGrey400)는 지난 날, var(--adaptiveGrey600)은 보조 텍스트.\n\nS1-a 날짜 상세 BottomSheet:\n- 제목 '{M}월 {D}일 (요일)'\n- 이벤트 ListRow(ListRow.Texts top '{name}', right/bottom '-{amount}원', 월급은 '+')\n- 이벤트가 없으면 Paragraph.Text '이날은 출금·입금이 없어요'\n- Spacing size={12}\n- Paragraph.Text '하루 마감 잔고 {endBalance}원'\n- lowBalance가 endBalance와 다르면 '출금 후 최저 {lowBalance}원'\n\n로딩 상태 없음. 칸 터치 영역은 ≥48px."
+  },
+  {
+    "id": "0015",
+    "title": "출금 일정 목록 + 최저 잔고일 카드 + 공유 버튼",
+    "epic": "Epic 3. UI 화면",
+    "task": {
+      "description": "홈의 무료 층 컴포넌트 3개를 만든다.\n- ScheduleList({ rows }): data-testid 'schedule-list', ListRow 2줄\n- LowestDayCard({ summary, monthLabel, sparkline }): SummaryHero + CountUp + Badge '잔고 부족' + 크런치 캡션 + Sparkline. 노출 시 logImpression 1회\n- ShareButton: logClick과 shareApp을 호출하고, 실패하면 Toast를 띄운다.",
+      "acceptance_criteria": [
+        "(F4-AC-3, F4-AC-10) BASE 5행이 '10월 14일 (수) 카드값' / '-420,000원 · 잔고 380,000원', '10월 18일 (일) 넷플릭스' / '-17,000원 · 잔고 363,000원' 등 SPEC 문자열과 정확히 같다. 관리비가 있으면 6행이고 첫 행은 '10월 5일 (월) 관리비' / '-100,000원 · 지남'이다.",
+        "(F5-AC-1) BASE 10월 카드에 '이번 달 최저 잔고일 · 10월 24일 (토)', CountUp 최종값 '-252,000원', Badge '잔고 부족', '10월 24일부터 마이너스예요 · 252,000원 부족'이 보인다. StrictMode에서도 logImpression('lowest_day_card')는 1회다.",
+        "(F5-AC-2, F5-AC-3) 변형 설정이면 '월급 전 최저 구간 10월 21일 ~ 10월 22일 (2일)'과 '298,000원'이 보이고 Badge는 없다. 11월이면 '11월 최저 잔고일 · 11월 24일 (화)', '1,196,000원', '월급 전 최저 구간 11월 24일 하루'가 보인다.",
+        "(F5-AC-4) data-testid='balance-sparkline'의 점이 21개이고, 최저점 표시가 13번째 인덱스(10-24)에 있다.",
+        "(F5-AC-6) '내 잔고 달력 공유하기'를 탭하면 logClick('share_calendar')와 shareApp()이 각각 1회 호출된다. shareApp이 reject하면 Toast '공유하지 못했어요'가 뜨고 unhandled rejection은 0건이다."
+      ]
+    },
+    "covers": [
+      "F4-AC-3",
+      "F4-AC-10",
+      "F5-AC-1",
+      "F5-AC-2",
+      "F5-AC-3",
+      "F5-AC-4",
+      "F5-AC-6"
+    ],
+    "files": [
+      "src/components/home/ScheduleList.tsx",
+      "src/components/home/LowestDayCard.tsx",
+      "src/components/home/ShareButton.tsx",
+      "src/components/home/HomeCards.test.tsx"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/components/home/HomeCards.test.tsx 통과",
+      "npx tsc --noEmit 통과"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "블루프린트 S1 발췌:\n<div data-testid='lowest-day-card'>\n  <SummaryHero label='이번 달 최저 잔고일 · 10월 24일 (토)'\n    value={<CountUp value={lowest.balance} suffix='원' typography='t2' />}\n    caption={crunchCaption /* '10월 24일부터 마이너스예요 · 252,000원 부족' 또는 '월급 전 최저 구간 …' */} />\n  {firstNegativeDate && <Badge size='small' variant='weak' color='red'>잔고 부족</Badge>}\n  <Spacing size={12} />\n  <Sparkline data-testid='balance-sparkline' points={endBalances} markIndex={lowestIdx} />\n</div>\n<Spacing size={16} />\n<div data-testid='schedule-list'>{monthEvents.map(e => <ListRow key={...}\n  contents={<ListRow.Texts type='2RowTypeA' top='10월 14일 (수) 카드값' bottom='-420,000원 · 잔고 380,000원' />} />)}</div>\n\n공유 버튼: <Button variant='weak' size='large' display='block' onClick={share}>내 잔고 달력 공유하기</Button>. display prop이 .d.ts에 없으면 전체폭 flex div로 감싼다. 탭할 때 success 햅틱. 색상은 var(--adaptive*)만 쓴다."
+  },
+  {
+    "id": "0016",
+    "title": "출금일 바꿔보기 BottomSheet (ShiftSheet)",
+    "epic": "Epic 3. UI 화면",
+    "task": {
+      "description": "src/components/home/ShiftSheet.tsx를 만든다. 잠금 층의 sim-row를 탭하면 열린다.\n- 날짜 NumericField의 기본값은 bestShifts의 toDay다.\n- 입력하는 즉시 simulateShift로 비교 문구를 보여 주고, 29~31일이면 말일 안내를 함께 보여 준다.\n- '이 날짜로 저장'은 setOutflowDay를 호출한다. 성공하면 Toast를 띄우고 requestReviewOnce를 부른다. 리뷰 요청 실패는 무음으로 처리한다.",
+      "acceptance_criteria": [
+        "(F6-AC-5) BASE, today '2026-10-11'에서 월세 시트를 열면 기본값은 26이다. '28'을 입력하면 '지금 최저 -252,000원 → 바꾸면 298,000원 (+550,000원)'이 보인다. 저장을 탭하면 아래가 모두 일어난다.\n- logClick('sim_save_day')·requestReviewOnce() 각 1회\n- 월세가 { id: 'o-rent', name: '월세', amount: 550000, day: 28, weekendRule: 'none' }(dayChange 없음)로 저장\n- Toast '월세 출금일을 28일로 바꿨어요'\n- 시트 닫힘",
+        "(F6-AC-7, F6-AC-9) '0'·'32'를 입력하면 '1~31 사이 날짜를 입력해주세요'가 보인다. 빈 값이면 '바꿀 날짜를 입력해주세요'가 보인다. 두 경우 모두 비교 문구가 숨겨지고 버튼이 disabled이며, Enter를 눌러도 saveOutflows와 logClick이 0회다. '26'을 다시 입력하면 원래대로 돌아온다.",
+        "(F6-AC-10) '31'을 입력하면 '+550,000원' 비교 문구와 '29~31일은 그 날짜가 없는 달에 말일로 계산해요'가 보인다.",
+        "(F6-AC-7, F6-AC-15) 저장이 실패(quota·unknown)하면 Toast '저장하지 못했어요. 다시 시도해주세요'가 뜨고 항목 day는 24로 남는다. logClick('sim_save_day')는 1회, requestReviewOnce는 0회다.",
+        "(F6-AC-14) requestReviewOnce가 reject하거나 throw해도 Toast는 '월세 출금일을 28일로 바꿨어요' 1개뿐이고, console.error는 0회다."
+      ]
+    },
+    "covers": [
+      "F6-AC-5",
+      "F6-AC-7",
+      "F6-AC-9",
+      "F6-AC-10",
+      "F6-AC-14",
+      "F6-AC-15"
+    ],
+    "files": [
+      "src/components/home/ShiftSheet.tsx",
+      "src/components/home/ShiftSheet.test.tsx"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/components/home/ShiftSheet.test.tsx 통과",
+      "npx tsc --noEmit 통과"
+    ],
+    "depends_on": [
+      "0010"
+    ],
+    "db_schema": "쓰기: 'pcm.outflows.v1' (useAppData().setOutflowDay → applyDayChangeToItem)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "S1-b 출금일 바꿔보기 BottomSheet(locked-tier에서만 열림). 구성:\n- BottomSheet 제목 '출금일 바꿔보기'\n- Paragraph.Text typography='t6' '{name} · 지금 {day}일'\n- Spacing size={12}\n- NumericField label '바꿀 날짜 (일)'\n- Spacing size={12}\n- 유효할 때만: Paragraph.Text typography='t5' '지금 최저 {baseMin}원 → 바꾸면 {newMin}원 ({delta 부호}원)'\n- 29~31일일 때: Paragraph.Text typography='t7' color='var(--adaptiveGrey600)' '29~31일은 그 날짜가 없는 달에 말일로 계산해요'\n- Spacing size={24}\n- Button variant='fill' size='large' 전체폭 '이 날짜로 저장'. 성공 시 generateHapticFeedback({ type: 'success' })\n\nHEX 금지. 여백은 Spacing만 쓴다."
+  },
+  {
+    "id": "0017",
+    "title": "시뮬레이션 섹션 (teaser + 리워드 게이트 + 잠금 층 목록)",
+    "epic": "Epic 3. UI 화면",
+    "task": {
+      "description": "SimSection과 LockedTier를 만든다.\n- SimSection: 잠금이 풀리기 전에는 locked-teaser를 보이고, TossRewardAd(slotId=VITE_TOSS_AD_SLOT_ID)의 자식으로 LockedTier만 둔다. 무료 층은 게이트 바깥에 있다.\n- LockedTier: 마운트 시 onUnlocked와 logImpression 1회를 실행한다. 제목 '출금일을 옮기면'과 bestShifts 결과를 sim-row ListRow로 보여 주고, 탭하면 ShiftSheet를 연다.",
+      "acceptance_criteria": [
+        "(F6-AC-2) 게이트가 열린 상태에서 BASE의 locked-tier에 '출금일을 옮기면'과 sim-row 4개(월세·카드값·통신비·넷플릭스 순)가 있다. 문자열은 SPEC F6-AC-2와 정확히 같고, sim-row-o-rent는 '월세 24일 → 26일' / '최저 잔고 +550,000원'이다. logImpression('sim_locked_tier')는 1회다.",
+        "(F6-AC-6) day 26 월세 한 항목뿐이면 sim-row-o-rent가 '월세 26일 · 지금 날짜가 가장 유리해요' / '변화 없음 (0원)'이고 '→' 문자가 0개다.",
+        "(F6-AC-11) 광고 로드가 pending이면 locked-teaser '항목별로 가장 유리한 출금일을 찾아드려요' / '광고를 끝까지 보면 열려요'가 보이고, locked-tier는 DOM에 없으며 logImpression은 0회다.",
+        "(F6-AC-12) 보상 전에 광고를 닫으면 locked-tier가 없고 teaser가 유지된다. Toast·localStorage 쓰기·logImpression은 모두 0회다.",
+        "(F6-AC-13) slotId가 비어 있거나 로드가 실패해 게이트가 자동으로 열리면 sim-row 4개가 보이고, 실패 문구와 Toast는 0개, logImpression은 1회다."
+      ]
+    },
+    "covers": [
+      "F6-AC-1",
+      "F6-AC-2",
+      "F6-AC-6",
+      "F6-AC-11",
+      "F6-AC-12",
+      "F6-AC-13"
+    ],
+    "files": [
+      "src/components/home/SimSection.tsx",
+      "src/components/home/LockedTier.tsx",
+      "src/components/home/SimSection.test.tsx"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/components/home/SimSection.test.tsx 통과",
+      "npx tsc --noEmit 통과",
+      "TossRewardAd 자식에 free-tier 요소 0개"
+    ],
+    "depends_on": [
+      "0016"
+    ],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "블루프린트 S1 발췌:\n<div data-testid='sim-section'>\n  {!unlocked && <div data-testid='locked-teaser'>\n    <Paragraph.Text typography='t5'>항목별로 가장 유리한 출금일을 찾아드려요</Paragraph.Text>\n    <Spacing size={4} />\n    <Paragraph.Text typography='t7' color='var(--adaptiveGrey600)'>광고를 끝까지 보면 열려요</Paragraph.Text></div>}\n  <TossRewardAd slotId={import.meta.env.VITE_TOSS_AD_SLOT_ID}>\n    <LockedTier onMount={onUnlocked} /* data-testid='locked-tier': 제목 t4 '출금일을 옮기면' + sim-row ListRow + 안내 t7 */ />\n  </TossRewardAd></div>\n\nsim-row: ListRow data-testid='sim-row-{id}', contents ListRow.Texts type='2RowTypeA', top '{name} {from}일 → {to}일', bottom '최저 잔고 +{delta}원'. 탭하면 ShiftSheet가 열린다. 템플릿 TossRewardAd를 재설계하지 않는다."
+  },
+  {
+    "id": "0018",
+    "title": "홈 페이지 조립 (/) + 월 이월 훅",
+    "epic": "Epic 3. UI 화면",
+    "task": {
+      "description": "src/pages/Home.tsx에서 홈 화면을 조립한다. 무료 층과 sim-section은 게이트 바깥에 두고, 출금이 0개이거나 기준일이 62일을 넘으면 sim-section을 숨긴다.\n- 무료 층 구성: Top, 이번·다음 달 Tab, stale-balance-row, 빈 상태·너무 오래된 상태, LowestDayCard, CalendarGrid·DayDetailSheet, ScheduleList, AdSlot, 공유 버튼\n- 설정이 없으면 /setup으로 보낸다.\n- useMonthRollover는 새 달 Toast와 meta 저장을 맡고, 저장 실패는 무음 처리한다.",
+      "acceptance_criteria": [
+        "(F4-AC-1, F5-AC-5) BASE, today '2026-10-11'에서 day-cell-2026-10-24에 '월세'·'-25.2만'이, lowest-day-card에 '10월 24일 (토)'·'-252,000원'이 보인다. AdSlot은 schedule-list 아래, sim-section 위, free-tier 바깥에 있다. 광고가 실패해도 세 영역은 렌더된다.",
+        "(F4-AC-5, F5-AC-7, F6-AC-8) 출금이 0개면 아래 상태가 된다.\n- 보이는 것: '출금 항목을 등록하면 잔고가 얇아지는 날을 찍어드려요', '출금 항목 추가' 버튼(탭하면 navigate('/items', { state: { openAdd: true } }))\n- 렌더되지 않는 것: lowest-day-card, 공유 버튼, sim-section, TossRewardAd. logImpression('lowest_day_card')도 0회",
+        "(F4-AC-6, F4-AC-7) loadSettings가 settings null을 돌려주면(recovered가 true이든 false이든) navigate('/setup', { replace: true, state: { mode: 'onboarding' } })로 보낸다. '다음 달 (11월)' Tab을 누르면 grid가 2026-11로 바뀌고 11-24에 '119.6만'이, schedule-list에 5행이 보인다.",
+        "(F7-AC-1, F7-AC-8, F7-AC-9) meta lastSeenMonth '2026-10', today '2026-11-02'이면 Tab이 '이번 달 (11월)'/'다음 달 (12월)'로 바뀌고, Toast '11월 달력으로 넘어왔어요'를 1회 띄운 뒤 meta를 '2026-11'로 저장한다. saveMeta가 quota·unknown으로 실패해도 화면은 정상이고 에러 Toast는 0회다.",
+        "(F7-AC-3, F7-AC-4, F7-AC-5) 기준일이 지난달이면 stale-balance-row '잔고 기준일이 10월 11일이에요' / '지금 잔고로 바꾸기'가 보이고, 탭하면 navigate('/setup', { state: { mode: 'edit', focus: 'balance' } })로 이동한다. 잔고를 1,500,000으로 갱신하면 row가 사라지고 카드가 '11월 24일 (화) · 448,000원'이 된다. today '2026-12-13'이면 잔고 숫자가 0개이고 '잔고 기준일이 너무 오래됐어요 (10월 11일)'와 '지금 잔고 입력' 버튼이 보인다."
+      ]
+    },
+    "covers": [
+      "F4-AC-1",
+      "F4-AC-5",
+      "F4-AC-6",
+      "F4-AC-7",
+      "F4-AC-9",
+      "F5-AC-5",
+      "F5-AC-7",
+      "F6-AC-8",
+      "F7-AC-1",
+      "F7-AC-3",
+      "F7-AC-4",
+      "F7-AC-5",
+      "F7-AC-8",
+      "F7-AC-9"
+    ],
+    "files": [
+      "src/pages/Home.tsx",
+      "src/pages/home/useMonthRollover.ts",
+      "src/pages/Home.test.tsx"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/pages/Home.test.tsx 통과",
+      "npx tsc --noEmit 통과",
+      "Home.tsx에 잔고·요약 계산 코드 0줄(buildHomeModel만 호출)"
+    ],
+    "depends_on": [
+      "0014",
+      "0015",
+      "0017"
+    ],
+    "db_schema": "쓰기: 'pcm.meta.v1' ← { version: 1, lastSeenMonth: YearMonth } (useMonthRollover)",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "Pattern: custom (Top+우측액션 + Hero Summary + 달력 grid + 리워드 게이트). 블루프린트 S1 Layout:\n<PageShell><ScreenScaffold>\n<Top title={<Top.TitleParagraph>텅장달력</Top.TitleParagraph>}\n     right={<Button variant='weak' size='small' onClick={goSetupEdit}>월급·잔고</Button>} />\n<Tab onChange={setMonthIdx}>\n  <Tab.Item selected={monthIdx===0}>이번 달 ({M}월)</Tab.Item>\n  <Tab.Item selected={monthIdx===1}>다음 달 ({M+1}월)</Tab.Item>\n</Tab>\n<Spacing size={16} />\n<div data-testid='free-tier'>\n  {isStale && <ListRow data-testid='stale-balance-row' onClick={goSetupBalance}\n     contents={<ListRow.Texts type='2RowTypeA' top='잔고 기준일이 10월 11일이에요' bottom='지금 잔고로 바꾸기' />} />}\n  {tooOld /* 62일 초과, F7-AC-5 */ ? <TooOldPanel /> : outflows.length === 0 ? <EmptyPanel /> : <LowestDayCard … />}\n  <Spacing size={16} />\n  <CalendarGrid … />\n  <Spacing size={16} />\n  <ScheduleList … />\n</div>\n<AdSlot adGroupId={import.meta.env.VITE_TOSS_AD_GROUP_ID} />\n{outflows.length > 0 && !tooOld && <SimSection … />}\n<Spacing size={24} />\n{hasCard && <ShareButton />}\n</ScreenScaffold></PageShell>\n\nEmptyPanel·TooOldPanel은 Asset.ContentIcon + Paragraph.Text + Spacing + display='block' Button으로 만든다.\n\n※ FloatingTabBar('달력' /, '출금 항목' /items)는 App(0019)이 렌더하므로 Home에서는 렌더하지 않는다.\n\n색상: Red500은 음수, Red50은 크런치, Grey400은 지난 날, Grey600은 보조 텍스트. 로딩 스켈레톤은 두지 않는다(동기 load)."
+  },
+  {
+    "id": "0019",
+    "title": "라우팅 + 전역 Provider + StorageGuard 배선 (App.tsx 단일 소유)",
+    "epic": "4",
+    "task": {
+      "description": "src/App.tsx는 이 패킷만 수정한다.\n- 전체를 StorageGuard로 감싸고, 그 안에 AppDataProvider를 둔다.\n- Route는 '/'(Home), '/setup'(Setup), '/items'(Items), '*'(Navigate to='/' replace)다.\n- FloatingTabBar는 '/'와 '/items'에서만 렌더한다.\n- StorageGuard는 첫 렌더 전에 probeStorage를 1회 호출한다. false면 storage-unavailable 화면만 보여 주고 '다시 시도'를 지원한다.\n- main.tsx는 수정하지 않는다.",
+      "acceptance_criteria": [
+        "(F4-AC-11) probeStorage가 false이면 '/', '/setup', '/items' 어디로 진입해도 data-testid='storage-unavailable'만 렌더된다. 이때 Top '텅장달력', Asset.ContentIcon, '저장 공간을 쓸 수 없어 달력을 만들 수 없어요', '다시 시도'가 보이고, FloatingTabBar·AdSlot·TossRewardAd는 0개다.",
+        "'다시 시도'를 탭했을 때 여전히 false면 Toast '아직 저장 공간을 쓸 수 없어요'를 띄우고 같은 상태에 머문다. true가 되면 원래 경로를 렌더한다(BASE에서 '/'이면 lowest-day-card가 보인다). /setup으로 이동하지 않고 console.error는 0회다.",
+        "(F4-AC-12) BASE가 저장된 상태에서 '/result'나 '/foo/bar'로 진입하면 pathname이 '/'가 되고 홈이 렌더된다. replace로 이동하므로 뒤로 가기를 눌러도 /result로 돌아가지 않으며, Toast는 0회다.",
+        "'/'와 '/items'에는 FloatingTabBar('달력', '출금 항목')가 1개 렌더되고, '/setup'에는 0개다. src/main.tsx의 diff는 0줄이다."
+      ]
+    },
+    "covers": [
+      "F4-AC-11",
+      "F4-AC-12"
+    ],
+    "files": [
+      "src/App.tsx",
+      "src/components/StorageGuard.tsx",
+      "src/App.test.tsx"
+    ],
+    "definition_of_done": [
+      "npx vitest run src/App.test.tsx 통과",
+      "npx tsc --noEmit 통과",
+      "npm run build 성공",
+      "src/App.tsx를 files에 가진 패킷은 이 패킷 1개"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": "S0 저장소 사용 불가(StatusPanel) — 블루프린트 그대로:\n<StorageGuard>  // 첫 렌더 전에 probeStorage() 1회. false면 아래를 렌더하고, 라우트·FloatingTabBar·AdSlot·TossRewardAd는 0개\n  <div data-testid='storage-unavailable'>\n    <Top title={<Top.TitleParagraph>텅장달력</Top.TitleParagraph>} />\n    <Spacing size={32} />\n    <Asset.ContentIcon /* 경고·빈 상태 아이콘 */ />\n    <Spacing size={16} />\n    <Paragraph.Text typography='t4'>저장 공간을 쓸 수 없어 달력을 만들 수 없어요</Paragraph.Text>\n    <Spacing size={8} />\n    <Paragraph.Text typography='t6' color='var(--adaptiveGrey600)'>토스 앱을 완전히 닫았다가 다시 열어주세요</Paragraph.Text>\n    <Spacing size={24} />\n    <Button variant='fill' size='large' display='block' onClick={retry}>다시 시도</Button>\n  </div>\n</StorageGuard>\n\n'다시 시도'를 탭하면 tickWeak 햅틱 후 probeStorage()를 다시 호출한다. FloatingTabBar는 템플릿 src/components/FloatingTabBar를 쓰고, 활성 탭은 컬러 틴트로 표시한다."
+  },
+  {
+    "id": "0020",
+    "title": "최종 폴리시 — 검수 정적 감사 + 핵심 여정·리워드 게이트 통합 테스트",
+    "epic": "Epic 4. 통합",
+    "task": {
+      "description": "src/App.tsx와 main.tsx는 건드리지 않는다. 이 앱에는 결제가 없고, 광고는 템플릿 AdSlot과 TossRewardAd를 그대로 쓰므로 새 광고·결제 컴포넌트는 만들지 않는다. 이 패킷은 검수 반려를 막는 정적 감사와 통합 테스트만 추가한다.\n- 정적 감사: HEX·외부 이동·설치 유도·호환 API·외부 SDK\n- 핵심 여정 E2E: onboarding → items → home\n- 광고 미설정 시 무료 층과 잠금 층 확인",
+      "acceptance_criteria": [
+        "(F4-AC-8) src/**/*.{ts,tsx,css}에서 테스트 파일(*.test.*, src/test/**)을 빼고 검사하면 아래가 모두 0건이다.\n- 정규식 #[0-9a-fA-F]{3,8}\\b\n- 'window.open('\n- \"location.href = 'http\"\n- '설치'·'다운로드' 문자열",
+        "(F7-AC-7) 같은 범위에서 아래가 모두 0건이다.\n- crypto.randomUUID, structuredClone, '.at(', Object.hasOwn, Intl.Segmenter\n- GA·Amplitude 등 외부 분석 SDK import(react-ga, @amplitude, firebase/analytics)",
+        "(F4-AC-1, Value AC) 빈 저장소, today '2026-10-11'에서 App을 렌더하고 아래를 진행하면 홈의 day-cell-2026-10-24에 '월세'와 '-25.2만'이, lowest-day-card에 '-252,000원'이 보인다.\n1. /setup에 2500000·25·800000 입력 후 '다음'\n2. /items에서 BASE 4개 추가\n3. 하단 탭 '달력' 탭",
+        "(F6-AC-1, F6-AC-13) VITE_TOSS_AD_SLOT_ID를 비운 채 BASE로 홈에 진입하면 free-tier(lowest-day-card '10월 24일 (토)' · '-252,000원', calendar-grid, schedule-list)가 보이고, locked-tier의 sim-row 4개가 자동으로 열린다. 실패 Toast는 0개, logImpression('sim_locked_tier')는 1회다.",
+        "전체 npx vitest run이 통과하고, 실행 중 console.error는 0회다."
+      ]
+    },
+    "covers": [
+      "F4-AC-8",
+      "F7-AC-7",
+      "F4-AC-1",
+      "F6-AC-1",
+      "F6-AC-13"
+    ],
+    "files": [
+      "src/test/staticAudit.test.ts",
+      "src/test/journey.test.tsx",
+      "src/test/rewardGate.test.tsx"
+    ],
+    "definition_of_done": [
+      "npx vitest run 전체 통과",
+      "npx tsc --noEmit 통과",
+      "npm run build 성공",
+      "src/App.tsx·src/main.tsx diff 0줄"
+    ],
+    "depends_on": [],
+    "db_schema": "",
+    "api_contract": "",
+    "dependencies": [],
+    "ui_requirements": ""
+  }
+]
