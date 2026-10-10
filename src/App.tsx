@@ -3,6 +3,7 @@
 //   <Routes>를 감싸는 자리에 끼워라. 라우트 경로는 지우지 말고 고쳐라(화면 파일은 이 경로로 navigate한다).
 // 화면 패킷: 이 파일을 건드리지 마라 — 자기 페이지 파일(자리 페이지)만 통째로 교체한다.
 import { lazy, Suspense } from 'react';
+import { CalendarDays, Wallet } from 'lucide-react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { StorageGuard } from './components/StorageGuard';
 import { FloatingTabBar } from './components/FloatingTabBar';
@@ -21,8 +22,8 @@ const DevTdsGallery = import.meta.env.DEV
   : null;
 
 const TABS: TabItem[] = [
-  { label: '달력', path: '/' },
-  { label: '출금 항목', path: '/items' },
+  { label: '달력', path: '/', icon: <CalendarDays size={22} aria-hidden /> },
+  { label: '출금 항목', path: '/items', icon: <Wallet size={22} aria-hidden /> },
 ];
 
 /** 탭바는 탭-루트 화면('/', '/items')에서만 그린다. /setup·리다이렉트 중인 경로에는 없다. */

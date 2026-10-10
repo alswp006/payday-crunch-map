@@ -129,19 +129,22 @@ export default function Setup() {
         />
       </div>
       <Spacing size={12} />
-      <Paragraph.Text typography="t6">주말이면</Paragraph.Text>
-      <Spacing size={8} />
-      <Chip kind="select" wrap>
-        {WEEKEND_OPTIONS.map((option) => (
-          <ChipItem
-            key={option.rule}
-            selected={form.weekendRule === option.rule}
-            onClick={() => handleWeekendRule(option.rule)}
-          >
-            {option.label}
-          </ChipItem>
-        ))}
-      </Chip>
+      {/* TextField(box)의 내부 좌측 여백과 라벨·칩의 시작선을 맞춘다. */}
+      <div style={{ paddingInline: 20 }}>
+        <Paragraph.Text typography="t6">주말이면</Paragraph.Text>
+        <Spacing size={8} />
+        <Chip kind="select" wrap>
+          {WEEKEND_OPTIONS.map((option) => (
+            <ChipItem
+              key={option.rule}
+              selected={form.weekendRule === option.rule}
+              onClick={() => handleWeekendRule(option.rule)}
+            >
+              {option.label}
+            </ChipItem>
+          ))}
+        </Chip>
+      </div>
       <Spacing size={12} />
       <div ref={form.bindField('balance')}>
         <NumericField

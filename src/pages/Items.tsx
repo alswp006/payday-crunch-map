@@ -159,7 +159,9 @@ export default function Items() {
     >
       <Spacing size={16} />
       <Card testId="outflow-total">
-        <Paragraph.Text typography="t5">{summaryText}</Paragraph.Text>
+        <Paragraph.Text typography="t4" fontWeight="bold">
+          {summaryText}
+        </Paragraph.Text>
         {percent !== null ? (
           <>
             <Spacing size={8} />
@@ -179,13 +181,21 @@ export default function Items() {
           icon={<Asset.ContentIcon name="icon-plus-small-mono" alt="" style={{ width: 48, height: 48 }} />}
           title="아직 등록한 출금이 없어요"
           action={
-            <Chip kind="action" wrap>
-              {PRESET_NAMES.map((name) => (
-                <ChipItem key={name} onClick={() => handlePreset(name)}>
-                  {name}
-                </ChipItem>
-              ))}
-            </Chip>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Paragraph.Text typography="t7" color="var(--adaptiveGrey600)">
+                자주 쓰는 항목을 눌러 바로 추가해요
+              </Paragraph.Text>
+              <Spacing size={12} />
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <Chip kind="action" wrap>
+                  {PRESET_NAMES.map((name) => (
+                    <ChipItem key={name} onClick={() => handlePreset(name)}>
+                      {name}
+                    </ChipItem>
+                  ))}
+                </Chip>
+              </div>
+            </div>
           }
         />
       )}
