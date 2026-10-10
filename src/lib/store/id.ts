@@ -1,4 +1,4 @@
-// 출금 항목 id 생성. crypto.randomUUID는 Android 7 / iOS 16 이전 WebView에 없어 쓰지 않는다.
+// 출금 항목 id 생성. 구형 WebView(Android 7 · iOS 16 미만)에 없는 UUID API 대신 시각·순번·난수로 만든다.
 
 const SEQ_MODULO = 1679616; // 36^4 — 접미사는 최대 4자
 const RANDOM_LEN = 6;
