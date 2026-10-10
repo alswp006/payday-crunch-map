@@ -12,6 +12,7 @@ import { test, expect, type Page } from "@playwright/test";
  */
 const ROUTES: { path: string; name: string }[] = [
   { path: "/", name: "home" },
+  { path: "/items", name: "items" },
   // { path: "/result", name: "result" },   // ← 이 앱의 라우트를 추가
   // { path: "/settings", name: "settings" },
 ];
@@ -19,7 +20,29 @@ const ROUTES: { path: string; name: string }[] = [
 /** 데이터가 필요한 화면용 localStorage 시드(앱에 맞게 채워라). 앱 스크립트보다 먼저 실행된다. */
 async function seed(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    // window.localStorage.setItem("MY_STORAGE_KEY", JSON.stringify({ /* ... */ }));
+    window.localStorage.setItem(
+      "pcm.settings.v1",
+      JSON.stringify({
+        version: 1,
+        salaryAmount: 2500000,
+        salaryDay: 25,
+        salaryWeekendRule: "none",
+        currentBalance: 800000,
+        balanceAsOf: "2026-10-11",
+      }),
+    );
+    window.localStorage.setItem(
+      "pcm.outflows.v1",
+      JSON.stringify({
+        version: 1,
+        items: [
+          { id: "o-rent", name: "월세", amount: 550000, day: 24, weekendRule: "none" },
+          { id: "o-card", name: "카드값", amount: 420000, day: 14, weekendRule: "none" },
+          { id: "o-phone", name: "통신비", amount: 65000, day: 21, weekendRule: "none" },
+          { id: "o-netflix", name: "넷플릭스", amount: 17000, day: 18, weekendRule: "none" },
+        ],
+      }),
+    );
   });
 }
 
