@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { TossAds } from "@apps-in-toss/web-framework";
+import { logImpression } from "@/lib/analytics";
 
 interface AdSlotProps {
   /** 광고 그룹 ID — 앱인토스 콘솔에서 발급받아 입력 */
@@ -68,6 +69,20 @@ export function AdSlot({ adGroupId, className, variant, theme }: AdSlotProps) {
       }
     };
   }, [adGroupId, variant, theme]);
+
+  // 뷰포트에 들어온 시점에 노출 로그 1회 (SPEC F5-AC-5)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) {
+        logImpression("banner_calendar");
+        io.disconnect();
+      }
+    }, { threshold: 0.5 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   return <div ref={containerRef} data-ad-group-id={adGroupId} className={className ?? "ad-slot"} />;
 }
