@@ -35,7 +35,13 @@ function rowBottom(r: SimResult, first: boolean): string {
  */
 export function LockedTier({ settings, outflows, today, onUnlocked }: LockedTierProps) {
   const [sheet, setSheet] = useState<{ itemId: string; open: boolean } | null>(null);
-  const results = useMemo(() => bestShifts(settings, outflows, today), [settings, outflows, today]);
+  const results = useMemo(
+    () =>
+      bestShifts(settings, outflows, today)
+        .slice()
+        .sort((a, b) => b.delta - a.delta || a.name.localeCompare(b.name, 'ko')),
+    [settings, outflows, today],
+  );
 
   // 마운트 1회. StrictMode가 effect를 두 번 돌려도 노출은 한 번만 남긴다.
   const mounted = useRef(false);
