@@ -139,6 +139,7 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
     SummaryHero.tsx
     TossPurchase.tsx
     TossRewardAd.tsx
+    form/
   hooks/
   lib/
     analytics.ts
@@ -192,7 +193,7 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 - store/load.ts: export function loadSettings():; export function loadOutflows():; export function loadMeta(): AppMeta | null
 - store/save.ts: export function saveSettings(settings: PaySettings): SaveResult; export function saveOutflows(items: Outflow[]): SaveResult; export function saveMeta(meta: AppMeta): SaveResult
 - store/storage.ts: export type StorageErrorKind = 'quota' | 'unknown'; export function readRaw(key: string): string | null; export function writeRaw(key: string, value: unknown): void; export function removeKey(key: string): void; export function probeStorage(): boolean; export function classifyStorageError(e: unknown): StorageErrorKind
-- store/validate.ts: export const MAX_OUTFLOWS = 30; export function isPlainObject(value: unknown): value is Record<string, unknown>; export function isIntInRange(value: unknown, min: number, max: number): value is number; export function isWeekendRule(value: unknown): value is WeekendRule; export function parseSettings(value: unknown): PaySettings | null; export function parseOutflowContainer(value: unknown): unknown[] | null; export function ...
+- store/validate.ts: export const MAX_OUTFLOWS = 30; export function isPlainObject(value: unknown): value is Record<string, unknown>; export function isIntInRange(value: unknown, min: number, max: number): value is number; export function isWeekendRule(value: unknown): value is WeekendRule; export function parseSettings(value: unknown): PaySettings | null; export function parseOutflowContainer(value: unknown): unknown[] | null; export...
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
@@ -205,6 +206,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0007: 출금일 변경 적용 시점 (applyDayChange, applyDayChangeToItem) (files: src/lib/balance/dayChange.ts, src/lib/balance/dayChange.test.ts)
 - 0008: 출금일 이동 시뮬레이션 + 홈 화면 모델 selector (files: src/lib/balance/simulate.ts, src/lib/balance/simulate.test.ts, src/lib/balance/homeModel.ts, src/lib/balance/homeModel.test.ts)
 - 0009: 앱 데이터 상태 Context (AppDataProvider + 액션) (files: src/state/AppDataContext.tsx, src/state/AppDataContext.test.tsx)
+- 0010: 숫자 입력 필드 NumericField (공용 컴포넌트) (files: src/components/form/NumericField.tsx, src/components/form/NumericField.test.tsx)
 
 ## Available exports from existing files
 // src/App.tsx
@@ -256,6 +258,9 @@ export function TossPurchase({
 // src/components/TossRewardAd.tsx
 export function TossRewardAd({
 
+// src/components/form/NumericField.tsx
+export function NumericField({
+
 // src/lib/analytics.ts
 export type LogFields = Record<string, string | number | boolean | null>;
 export const DWELL_MS = 3000;
@@ -275,9 +280,7 @@ export function collectEvents(args: {
 export function buildMonthEvents(args: EventArgs): DayEvent[] {
 
 // src/lib/balance/homeModel.ts
-export interface HomeCell {
-export interface HomeRow {
-export interface HomeS
+expor
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 

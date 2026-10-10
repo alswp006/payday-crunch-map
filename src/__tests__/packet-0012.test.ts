@@ -30,7 +30,7 @@ function sheet(props: SheetProps) {
   return React.createElement(
     MemoryRouter,
     null,
-    React.createElement(OutflowSheet as React.ComponentType<SheetProps>, {
+    React.createElement(OutflowSheet as unknown as React.ComponentType<SheetProps>, {
       open: true,
       mode: 'add',
       onClose: vi.fn(),
