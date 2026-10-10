@@ -37,12 +37,12 @@ export default function Home() {
 
   return (
     <ScreenScaffold
-      top={<Top title={<Top.TitleParagraph>Payday Crunch Map</Top.TitleParagraph>} />}
+      top={<Top title={<Top.TitleParagraph>텅장달력</Top.TitleParagraph>} />}
     >
       {/* 시각 앵커: 헤드라인 + 카드 내 진입 버튼(부유 금지, display="block" 전체폭).
           데이터 앱이면 value를 <Amount typography="t1" />(핵심 숫자)로 교체하라. */}
       <SummaryHero
-        label="Payday Crunch Map"
+        label="텅장달력"
         value={<Paragraph.Text typography="t2">월세·카드값·구독료 출금일이 월급일 전에 몰리는 날, 잔고가 가장 얇아지는 날을 달력으로 찍어줘요</Paragraph.Text>}
         caption="로그인 없이 바로 쓸 수 있어요"
         action={
