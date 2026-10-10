@@ -148,6 +148,7 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
     review.ts
     share.ts
     storage.ts
+    store/
     types.ts
     utils.ts
   main.tsx
@@ -175,6 +176,10 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 - review.ts: export function requestReviewOnce(key: string = REVIEW_REQUESTED_KEY): void
 - share.ts: export interface ShareAppOptions; export async function shareApp(opts: ShareAppOptions): Promise<void>
 - storage.ts: export function getItem<T>(key: string): T | null; export function setItem<T>(key: string, value: T): void; export function removeItem(key: string): void
+- store/id.ts: export function newId(): string
+- store/keys.ts: export const SETTINGS_KEY = 'pcm.settings.v1'; export const OUTFLOWS_KEY = 'pcm.outflows.v1'; export const META_KEY = 'pcm.meta.v1'; export const ALL_KEYS = [SETTINGS_KEY, OUTFLOWS_KEY, META_KEY] as const; export function isAppKey(key: string): boolean
+- store/save.ts: export function saveSettings(settings: PaySettings): SaveResult; export function saveOutflows(items: Outflow[]): SaveResult; export function saveMeta(meta: AppMeta): SaveResult
+- store/storage.ts: export type StorageErrorKind = 'quota' | 'unknown'; export function readRaw(key: string): string | null; export function writeRaw(key: string, value: unknown): void; export function removeKey(key: string): void; export function probeStorage(): boolean; export function classifyStorageError(e: unknown): StorageErrorKind
 - types.ts: export type WeekendRule = 'none' | 'prevBusinessDay' | 'nextBusinessDay'; export type LocalDate = string; export type YearMonth = string; export interface PaySettings; export interface OutflowStore; export interface Outflow; export interface AppMeta; export interface DayEvent
 - utils.ts: export function cn(...classes: (string | boolean | undefined | null)[]): string; export function formatNumber(n: number): string; export function formatCurrency(n: number, currency = 'KRW'): string
 
@@ -202,6 +207,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0001: 도메인 타입 + RouteState 계약 정의 (files: src/lib/types.ts, src/types/nav.ts)
 - 0002: 테스트 환경 + BASE 픽스처 + 전역 셋업 (files: package.json, vitest.config.ts, src/test/setup.ts, src/test/fixtures.ts, src/test/fixtures.test.ts)
 - 0003: 날짜·금액 포맷 유틸 (getToday, localDate, format) (files: src/lib/date/getToday.ts, src/lib/date/localDate.ts, src/lib/format.ts, src/lib/date/localDate.test.ts, src/lib/format.test.ts)
+- 0004: 저장소 어댑터 + save 계열 + probeStorage + id 생성 (files: src/lib/store/storage.ts, src/lib/store/keys.ts, src/lib/store/id.ts, src/lib/store/save.ts, src/lib/store/save.test.ts)
 
 ## Available exports from existing files
 // src/App.tsx
