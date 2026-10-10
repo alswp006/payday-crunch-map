@@ -171,6 +171,7 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 
 ### Exports (src/lib/)
 - analytics.ts: export type LogFields = Record<string, string | number | boolean | null>; export const DWELL_MS = 3000; export function fireAndForget(call: () => unknown): void; export function logScreen(page: string, extra?: LogFields): void; export function logClick(name: string, extra?: LogFields): void; export function logImpression(name: string, extra?: LogFields): void; export function useScreenLog(page: string): void
+- balance/dayChange.ts: export function applyDayChange( item: Pick<Outflow, 'name' | 'day' | 'dayChange'>, newDay: number, today: LocalDate, ):; export function applyDayChangeToItem(item: Outflow, newDay: number, today: LocalDate): Outflow
 - balance/events.ts: export interface DayOverride; export function collectEvents(args:; export function buildMonthEvents(args: EventArgs): DayEvent[]
 - balance/projection.ts: export function buildProjection(args:
 - balance/resolveActualDate.ts: export function resolveActualDate(year: number, month: number, day: number, rule: WeekendRule): LocalDate
@@ -188,12 +189,7 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
 - store/storage.ts: export type StorageErrorKind = 'quota' | 'unknown'; export function readRaw(key: string): string | null; export function writeRaw(key: string, value: unknown): void; export function removeKey(key: string): void; export function probeStorage(): boolean; export function classifyStorageError(e: unknown): StorageErrorKind
 - store/validate.ts: export const MAX_OUTFLOWS = 30; export function isPlainObject(value: unknown): value is Record<string, unknown>; export function isIntInRange(value: unknown, min: number, max: number): value is number; export function isWeekendRule(value: unknown): value is WeekendRule; export function parseSettings(value: unknown): PaySettings | null; export function parseOutflowContainer(value: unknown): unknown[] | null; export function parseOutflow(value: unknown, seenIds: ReadonlySet<string>): Outflow | null; export function normalizeOutflows(rawItems: unknown[]):
 - types.ts: export type WeekendRule = 'none' | 'prevBusinessDay' | 'nextBusinessDay'; export type LocalDate = string; export type YearMonth = string; export interface PaySettings; export interface OutflowStore; export interface Outflow; export interface AppMeta; export interface DayEvent
-- utils.ts: export function cn(...classes: (string | boolean | undefined | null)[]): string; export function formatNumber(n: number): string; export function formatCurrency(n: number, currency = 'KRW'): string
-
-### Components (src/components/)
-- AdSlot.tsx: AdSlot
-- Amount.tsx: Amount
-- BottomCTA.ts...
+- utils.ts: export function cn(...classes: (string | boolean...
 CRITICAL: Before creating any new function, type, or component, check the list above. If something similar exists, import and use it.
 
 ## Already Implemented (do NOT duplicate or overwrite)
@@ -203,6 +199,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 - 0004: 저장소 어댑터 + save 계열 + probeStorage + id 생성 (files: src/lib/store/storage.ts, src/lib/store/keys.ts, src/lib/store/id.ts, src/lib/store/save.ts, src/lib/store/save.test.ts)
 - 0005: 읽을 때 검증기 + load 계열 (손상 복구·버전 불일치·30개 상한) (files: src/lib/store/validate.ts, src/lib/store/validate.test.ts, src/lib/store/load.ts, src/lib/store/load.test.ts)
 - 0006: 잔고 계산 엔진 코어 (날짜 보정·월 이벤트·투영·월 요약) (files: src/lib/balance/resolveActualDate.ts, src/lib/balance/events.ts, src/lib/balance/projection.ts, src/lib/balance/summary.ts, src/lib/balance/projection.test.ts)
+- 0007: 출금일 변경 적용 시점 (applyDayChange, applyDayChangeToItem) (files: src/lib/balance/dayChange.ts, src/lib/balance/dayChange.test.ts)
 
 ## Available exports from existing files
 // src/App.tsx
@@ -263,6 +260,10 @@ export function logClick(name: string, extra?: LogFields): void {
 export function logImpression(name: string, extra?: LogFields): void {
 export function useScreenLog(page: string): void {
 
+// src/lib/balance/dayChange.ts
+export function applyDayChange(
+export function applyDayChangeToItem(item: Outflow, newDay: number, today: LocalDate): Outflow {
+
 // src/lib/balance/events.ts
 export interface DayOverride {
 export function collectEvents(args: {
@@ -271,11 +272,7 @@ export function buildMonthEvents(args: EventArgs): DayEvent[] {
 // src/lib/balance/projection.ts
 export function buildProjection(args: {
 
-// src/lib/balance/resolveActualDate.ts
-export function resolveActualDate(year: number, month: number, day: number, rule: WeekendRule): LocalDate {
-
-// src/lib/balance/summary.ts
-export function su
+// src/lib/balance/resolveActualDat
 
 ## Memory Index (자동 학습 — 힌트로만 사용, 실제 코드 확인 필수)
 
