@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
-import { ListRow } from '@toss/tds-mobile';
+import { ListRow, Paragraph } from '@toss/tds-mobile';
 import { formatWon } from '@/lib/format';
-import type { Outflow } from '@/lib/types';
+import type { Outflow, WeekendRule } from '@/lib/types';
+
+const WEEKEND_LABEL: Record<WeekendRule, string> = {
+  none: '그대로',
+  prevBusinessDay: '직전 평일',
+  nextBusinessDay: '다음 평일',
+};
 
 export interface OutflowListProps {
   /** 저장 순서(등록 순) 그대로. 화면 정렬은 여기서만 한다. */
@@ -33,9 +39,10 @@ export function OutflowList({ items, onSelect }: OutflowListProps) {
             <ListRow.Texts
               type="2RowTypeA"
               top={item.name}
-              bottom={`매월 ${item.day}일 · -${formatWon(item.amount)}원`}
+              bottom={`매월 ${item.day}일 · 주말이면 ${WEEKEND_LABEL[item.weekendRule] ?? WEEKEND_LABEL.none}`}
             />
           }
+          right={<Paragraph.Text typography="t6">{`${formatWon(item.amount)}원`}</Paragraph.Text>}
           withArrow
           onClick={() => onSelect(item)}
         />
