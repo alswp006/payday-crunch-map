@@ -156,6 +156,10 @@ export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' 
   styles/
     globals.css
     reward-ad.css
+  test/
+    fixtures.test.ts
+    fixtures.ts
+    setup.ts
   types/
     nav.ts
   vite-env.d.ts
@@ -187,6 +191,7 @@ CRITICAL: Before creating any new function, type, or component, check the list a
 
 ## Already Implemented (do NOT duplicate or overwrite)
 - 0001: 도메인 타입 + RouteState 계약 정의 (files: src/lib/types.ts, src/types/nav.ts)
+- 0002: 테스트 환경 + BASE 픽스처 + 전역 셋업 (files: package.json, vitest.config.ts, src/test/setup.ts, src/test/fixtures.ts, src/test/fixtures.test.ts)
 
 ## Available exports from existing files
 // src/App.tsx
